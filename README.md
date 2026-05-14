@@ -2,6 +2,8 @@
 
 A tiny, fast CLI + Claude skill for turning **images and webpages into ASCII art** — built for design engineers who want quick lofi wireframes, ASCII references, and screenshot mockups they can paste anywhere markdown renders.
 
+<p align="center"><img src="assets/hero.png" alt="lofi-ascii rendered wireframe" width="540"></p>
+
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │  [ Logo ]    Product   Pricing   Docs   Blog          [ Sign in ]  [ Start ] │
