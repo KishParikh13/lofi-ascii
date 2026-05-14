@@ -1,0 +1,268 @@
+#!/usr/bin/env bash
+# lofi-ascii — convert images and webpages into structured ASCII art
+# https://github.com/KishParikh13/lofi-ascii
+
+set -euo pipefail
+
+# Resolve real path of this script (follow symlinks so install via $HOME/.local/bin works).
+_resolve_script() {
+  local src="${BASH_SOURCE[0]}"
+  while [[ -h "$src" ]]; do
+    local dir
+    dir="$( cd -P "$( dirname "$src" )" && pwd )"
+    src="$(readlink "$src")"
+    [[ "$src" != /* ]] && src="$dir/$src"
+  done
+  echo "$( cd -P "$( dirname "$src" )" && pwd )"
+}
+SCRIPT_DIR="$(_resolve_script)"
+REPO_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
+LIB_DIR="$REPO_DIR/lib"
+
+# shellcheck source=../lib/styles.sh
+source "$LIB_DIR/styles.sh"
+# shellcheck source=../lib/render.sh
+source "$LIB_DIR/render.sh"
+# shellcheck source=../lib/screenshot.sh
+source "$LIB_DIR/screenshot.sh"
+# shellcheck source=../lib/output.sh
+source "$LIB_DIR/output.sh"
+# shellcheck source=../lib/compare.sh
+source "$LIB_DIR/compare.sh"
+# shellcheck source=../lib/gallery.sh
+source "$LIB_DIR/gallery.sh"
+# shellcheck source=../lib/to_png.sh
+source "$LIB_DIR/to_png.sh"
+
+VERSION="0.1.0"
+
+usage() {
+  cat <<EOF
+lofi-ascii v$VERSION — convert images and webpages into ASCII art
+
+USAGE
+  lofi-ascii render <image-path> [options]
+  lofi-ascii url <url> [options]
+  lofi-ascii screenshot <url> [options]
+  lofi-ascii gallery <input> [options]              # render one input in every style
+  lofi-ascii compare <input-a> <input-b> [options]  # side-by-side comparison
+  lofi-ascii to-png <ascii-file> [options]          # render ASCII back to a PNG image
+  lofi-ascii components [name]                      # list or print pre-made components
+  lofi-ascii styles
+  lofi-ascii doctor
+
+OPTIONS
+  --style=NAME      Style preset: blocks (default), photo, lofi, braille, sketch
+  --width=N         Output width in characters (default: 80; max: 240)
+  --out=PATH        Save to PATH instead of auto-generated filename
+  --no-save         Print to stdout only, don't write a file
+  --inline-only     Same as --no-save
+  --viewport=WxH    Browser viewport for screenshots (default: 1280x800)
+  --mobile          Use mobile viewport (390x844, iPhone-like)
+  --desktop         Use desktop viewport (1440x900)
+  --full-page       Capture full scrollable page (screenshot mode only)
+  --wait=MS         Wait MS milliseconds before screenshot (default: 1500)
+  -h, --help        Show this help
+  -v, --version     Show version
+
+EXAMPLES
+  lofi-ascii render ~/Desktop/hero.png --style=blocks --width=100
+  lofi-ascii url https://stripe.com --style=blocks --mobile
+  lofi-ascii screenshot https://example.com --out=example.png --full-page
+  lofi-ascii gallery https://stripe.com --width=60      # see all styles
+  lofi-ascii compare https://stripe.com https://square.com --width=60
+  lofi-ascii to-png wireframe.txt --out=wireframe.png   # ascii → image
+  lofi-ascii components signup-form                     # print a component
+  lofi-ascii components                                 # list all components
+  lofi-ascii styles                 # show every preset side by side
+  lofi-ascii doctor                 # check dependencies
+
+STYLES
+  blocks    Monochrome Unicode block characters — best default, renders everywhere
+  photo     Half-block + dithered + 256-color — photo-faithful
+  lofi      Pure 7-bit ASCII, narrow — copy-paste safe anywhere
+  braille   Maximum density via braille dots — best for detail
+  sketch    High-contrast outline emphasis — best for wireframes
+
+EOF
+}
+
+cmd_doctor() {
+  echo "lofi-ascii doctor"
+  echo "─────────────────"
+  local ok=1
+
+  if command -v chafa >/dev/null 2>&1; then
+    echo "  ✓ chafa: $(chafa --version 2>&1 | head -1)"
+  else
+    echo "  ✗ chafa: NOT FOUND. Run: brew install chafa"
+    ok=0
+  fi
+
+  if [[ -d "/Applications/Google Chrome.app" ]]; then
+    echo "  ✓ Chrome: $("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --version 2>&1)"
+  elif command -v chromium >/dev/null 2>&1; then
+    echo "  ✓ chromium: $(chromium --version 2>&1 | head -1)"
+  else
+    echo "  ⚠ No Chrome/Chromium found — URL/screenshot mode will not work."
+    echo "    Install Chrome from https://www.google.com/chrome/"
+  fi
+
+  if command -v node >/dev/null 2>&1; then
+    echo "  ✓ node: $(node --version)"
+  else
+    echo "  ⚠ node: not found (only needed for advanced screenshot options)"
+  fi
+
+  echo ""
+  if [[ $ok -eq 1 ]]; then
+    echo "  All required dependencies present."
+  else
+    echo "  Missing required dependencies — see above."
+    exit 1
+  fi
+}
+
+cmd_styles() {
+  local input="${1:-$REPO_DIR/test-fixtures/sample.png}"
+  if [[ ! -f "$input" ]]; then
+    echo "Usage: lofi-ascii styles <image-path>" >&2
+    echo "(or place a test image at $REPO_DIR/test-fixtures/sample.png)" >&2
+    exit 1
+  fi
+  for s in blocks photo lofi braille sketch; do
+    echo ""
+    echo "═══════════════════════════════════════════════════════════════"
+    echo "  STYLE: $s"
+    echo "═══════════════════════════════════════════════════════════════"
+    render_image "$input" "$s" 70 ""
+  done
+}
+
+# ── arg parsing ───────────────────────────────────────────────────────────────
+STYLE="blocks"
+WIDTH="80"
+OUT=""
+NO_SAVE=0
+THEME="light"   # light = invert (markdown/chat); dark = no invert (terminal)
+VIEWPORT="1280x800"
+FULL_PAGE=0
+WAIT_MS=1500
+
+SUBCMD="${1:-}"
+[[ -z "$SUBCMD" ]] && { usage; exit 0; }
+shift || true
+
+case "$SUBCMD" in
+  -h|--help|help) usage; exit 0 ;;
+  -v|--version|version) echo "lofi-ascii $VERSION"; exit 0 ;;
+  doctor) cmd_doctor; exit 0 ;;
+esac
+
+INPUT=""
+COMPARE_SECOND=""
+COMPARE_STACK=0
+FONT_SIZE=14
+if [[ $# -gt 0 && "$1" != --* ]]; then
+  INPUT="$1"
+  shift
+fi
+# Optional second positional (used by `compare`)
+if [[ $# -gt 0 && "$1" != --* ]]; then
+  COMPARE_SECOND="$1"
+  shift
+fi
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --style=*) STYLE="${1#*=}" ;;
+    --width=*) WIDTH="${1#*=}" ;;
+    --out=*) OUT="${1#*=}" ;;
+    --no-save|--inline-only) NO_SAVE=1 ;;
+    --theme=*) THEME="${1#*=}" ;;
+    --dark) THEME="dark" ;;
+    --light) THEME="light" ;;
+    --viewport=*) VIEWPORT="${1#*=}" ;;
+    --mobile) VIEWPORT="390x844" ;;
+    --desktop) VIEWPORT="1440x900" ;;
+    --full-page) FULL_PAGE=1 ;;
+    --wait=*) WAIT_MS="${1#*=}" ;;
+    --stack) COMPARE_STACK=1 ;;
+    --side) COMPARE_STACK=0 ;;
+    --font-size=*) FONT_SIZE="${1#*=}" ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Unknown option: $1" >&2; exit 1 ;;
+  esac
+  shift
+done
+
+case "$SUBCMD" in
+  render)
+    [[ -z "$INPUT" ]] && { echo "render: missing <image-path>" >&2; usage; exit 1; }
+    [[ -f "$INPUT" ]] || { echo "render: file not found: $INPUT" >&2; exit 1; }
+    output=$(render_image "$INPUT" "$STYLE" "$WIDTH" "" "$THEME")
+    handle_output "$output" "$INPUT" "$STYLE" "$OUT" "$NO_SAVE"
+    ;;
+  url)
+    [[ -z "$INPUT" ]] && { echo "url: missing <url>" >&2; usage; exit 1; }
+    tmp_png=$(mktemp -t lofi-ascii.XXXXXX).png
+    take_screenshot "$INPUT" "$tmp_png" "$VIEWPORT" "$FULL_PAGE" "$WAIT_MS"
+    output=$(render_image "$tmp_png" "$STYLE" "$WIDTH" "" "$THEME")
+    handle_output "$output" "$INPUT" "$STYLE" "$OUT" "$NO_SAVE"
+    rm -f "$tmp_png"
+    ;;
+  screenshot)
+    [[ -z "$INPUT" ]] && { echo "screenshot: missing <url>" >&2; usage; exit 1; }
+    target="${OUT:-./screenshot-$(date +%Y%m%d-%H%M%S).png}"
+    take_screenshot "$INPUT" "$target" "$VIEWPORT" "$FULL_PAGE" "$WAIT_MS"
+    echo "$target"
+    ;;
+  styles)
+    cmd_styles "$INPUT"
+    ;;
+  gallery)
+    [[ -z "$INPUT" ]] && { echo "gallery: missing <image-path-or-url>" >&2; exit 1; }
+    gallery_inputs "$INPUT" "$WIDTH" "$THEME"
+    ;;
+  compare)
+    [[ -z "$INPUT" ]] && { echo "compare: missing <input-a>" >&2; exit 1; }
+    # need a second positional arg; pop it from args (re-parse simplest)
+    SECOND="${COMPARE_SECOND:-}"
+    if [[ -z "$SECOND" ]]; then
+      echo "compare: missing <input-b>. Usage: lofi-ascii compare <a> <b> [--stack] [--width=N] [--style=NAME]" >&2
+      exit 1
+    fi
+    orientation="side"
+    [[ "${COMPARE_STACK:-0}" == "1" ]] && orientation="stack"
+    compare_inputs "$INPUT" "$SECOND" "$STYLE" "$WIDTH" "$orientation" "$OUT" "$THEME"
+    ;;
+  to-png)
+    [[ -z "$INPUT" ]] && { echo "to-png: missing <ascii-file>" >&2; exit 1; }
+    target="${OUT:-./${INPUT%.txt}.png}"
+    [[ "$target" == "./.png" ]] && target="./ascii-render-$(date +%Y%m%d-%H%M%S).png"
+    ascii_to_png "$INPUT" "$target" "${FONT_SIZE:-14}" "$THEME"
+    echo "" >&2
+    echo "Saved → $target" >&2
+    ;;
+  components)
+    if [[ -z "$INPUT" ]]; then
+      echo "Available components in $REPO_DIR/components/:"
+      ls "$REPO_DIR/components/" 2>/dev/null | sed 's/\.txt$//' | sed 's/^/  - /'
+    else
+      comp_path="$REPO_DIR/components/${INPUT}.txt"
+      if [[ -f "$comp_path" ]]; then
+        cat "$comp_path"
+      else
+        echo "components: no such component '$INPUT'" >&2
+        echo "available:" >&2
+        ls "$REPO_DIR/components/" 2>/dev/null | sed 's/\.txt$//' | sed 's/^/  - /' >&2
+        exit 1
+      fi
+    fi
+    ;;
+  *)
+    echo "Unknown subcommand: $SUBCMD" >&2
+    usage
+    exit 1
+    ;;
+esac

@@ -1,0 +1,55 @@
+  ─── Form fields cheatsheet ──────────────────────────────────────────────
+
+  Text input:
+  ┌─────────────────────────────────────┐
+  │ Label                               │
+  │ Value or placeholder…               │
+  └─────────────────────────────────────┘
+
+  Search:
+  ┌──────────────────────────────────┐
+  │ ⌕  Search…                       │
+  └──────────────────────────────────┘
+
+  Textarea:
+  ┌─────────────────────────────────────┐
+  │ Message                             │
+  │                                     │
+  │                                     │
+  │                                     │
+  └─────────────────────────────────────┘
+
+  Select / dropdown:
+  ┌─────────────────────────────────┐
+  │ State                       ▾   │
+  └─────────────────────────────────┘
+
+  Checkbox group:
+  ▣ Email notifications
+  ▢ SMS notifications
+  ▢ Push notifications
+
+  Radio group:
+  ● Monthly billing
+  ◯ Annual billing  (save 20%)
+
+  Toggle:
+  Notifications      ●━━○
+
+  Slider:
+  Volume      ●━━━━━━━━━━━━━━━━━━━━━━━━━○
+
+  Button hierarchy:
+  Primary:    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+              ┃        Save changes       ┃
+              ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  Secondary:  ┌───────────────────────────┐
+              │           Cancel          │
+              └───────────────────────────┘
+
+  Ghost:      [  Skip  ]
+
+  Destructive: ┏━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+               ┃   ✕  Delete account      ┃
+               ┗━━━━━━━━━━━━━━━━━━━━━━━━━━┛

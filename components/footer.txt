@@ -1,0 +1,7 @@
+  ─── Footer ──────────────────────────────────────────────────────────────────
+  Product       Company        Resources       Legal
+  ─ Features    ─ About        ─ Docs          ─ Terms
+  ─ Pricing     ─ Careers      ─ API           ─ Privacy
+  ─ Changelog   ─ Contact      ─ Status        ─ Security
+
+  © 2026 Company                                       [ Twitter ] [ GitHub ]

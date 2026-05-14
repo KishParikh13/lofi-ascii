@@ -1,0 +1,13 @@
+  ─── Pricing ─────────────────────────────────────────────────────────────────
+
+  ┌──────────────┐  ┏━━━━━━━━━━━━━━┓  ┌──────────────┐
+  │ Free         │  ┃ Pro          ┃  │ Enterprise   │
+  │              │  ┃ ★ Most pop.  ┃  │              │
+  │ $0 / mo      │  ┃ $29 / mo     ┃  │ Custom       │
+  │              │  ┃              ┃  │              │
+  │ ◯ Feature    │  ┃ ● Feature    ┃  │ ● Feature    │
+  │ ◯ Feature    │  ┃ ● Feature    ┃  │ ● Feature    │
+  │ ◯ Feature    │  ┃ ● Feature    ┃  │ ● SSO + SLA  │
+  │              │  ┃              ┃  │              │
+  │ [  Start  ]  │  ┃ [  Choose  ] ┃  │ [ Contact  ] │
+  └──────────────┘  ┗━━━━━━━━━━━━━━┛  └──────────────┘

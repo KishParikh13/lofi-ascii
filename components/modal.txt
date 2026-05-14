@@ -1,0 +1,13 @@
+                ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+                ┃                                  ✕   ┃
+                ┃  Modal title                         ┃
+                ┃  ▔▔▔▔▔▔ ▔▔▔                          ┃
+                ┃                                      ┃
+                ┃  Body text that explains what this   ┃
+                ┃  dialog is for and what will happen  ┃
+                ┃  when the user confirms.             ┃
+                ┃                                      ┃
+                ┃             ┌────────┐  ┏━━━━━━━━┓   ┃
+                ┃             │ Cancel │  ┃ Confirm┃   ┃
+                ┃             └────────┘  ┗━━━━━━━━┛   ┃
+                ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛

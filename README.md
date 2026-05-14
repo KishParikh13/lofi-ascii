@@ -1,0 +1,189 @@
+# lofi-ascii
+
+A tiny, fast CLI + Claude skill for turning **images and webpages into ASCII art** — built for design engineers who want quick lofi wireframes, ASCII references, and screenshot mockups they can paste anywhere markdown renders.
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  [ Logo ]    Product   Pricing   Docs   Blog          [ Sign in ]  [ Start ] │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+                       ┌─────────────────────────────────┐
+                       │   Build faster, ship smarter    │
+                       │                                 │
+                       │   ┏━━━━━━━━━━━━━┓  ┌────────────┐│
+                       │   ┃ Get started ┃  │ Learn more ││
+                       │   ┗━━━━━━━━━━━━━┛  └────────────┘│
+                       └─────────────────────────────────┘
+```
+
+## What it does
+
+- **`render`** — image → ASCII art (Unicode blocks, braille, pure ASCII, color photo, edge sketch). Deterministic, fast, powered by [`chafa`](https://hpjansson.org/chafa/).
+- **`url`** — webpage → screenshot → ASCII. Headless Chrome under the hood, no Playwright install needed.
+- **`wireframe`** (via Claude skill) — *Claude* looks at the image and emits a structured, labeled ASCII wireframe with box-drawing characters. Better than pixel ASCII for UI work because it understands "this is a button" and labels it accordingly.
+- **`gallery`** — render one input in every style for quick comparison.
+- **`compare`** — two inputs side-by-side (or stacked). Great for A/B previews or before/after.
+- **`to-png`** — render an ASCII file back to a PNG image, perfect for embedding in Figma, design docs, README hero images.
+- **`components`** — a library of pre-made ASCII components (navbar, hero, pricing, signup form, modal, data table, etc.) you can compose by hand.
+
+## Install
+
+```bash
+git clone https://github.com/KishParikh13/lofi-ascii ~/Code/lofi-ascii
+bash ~/Code/lofi-ascii/scripts/install.sh
+```
+
+The installer:
+- Installs `chafa` via Homebrew if missing
+- Verifies Chrome is installed (or Chromium)
+- Symlinks `lofi-ascii` into `~/.local/bin`
+- Symlinks the skill into `~/.claude/skills/lofi-ascii` so Claude Code picks it up
+
+Then:
+```bash
+lofi-ascii doctor                                # check deps
+lofi-ascii url https://stripe.com --width=80     # try it
+```
+
+## Usage
+
+```bash
+# Convert an image
+lofi-ascii render hero.png --style=blocks --width=80
+lofi-ascii render hero.png --style=braille --width=60    # max density
+lofi-ascii render hero.png --style=lofi    --width=60    # pure 7-bit ASCII
+
+# Convert a webpage (auto-screenshots first)
+lofi-ascii url https://stripe.com --style=blocks
+lofi-ascii url https://stripe.com --mobile               # 390px viewport
+lofi-ascii url https://stripe.com --desktop --full-page  # 1440px, full scroll
+
+# Just save the screenshot (no ASCII)
+lofi-ascii screenshot https://example.com --out=example.png
+
+# See every style at once
+lofi-ascii gallery https://stripe.com --width=60
+
+# Side-by-side comparison
+lofi-ascii compare https://stripe.com https://square.com --width=50
+lofi-ascii compare a.png b.png --stack                   # stacked instead
+
+# ASCII → PNG (great for Figma/docs)
+lofi-ascii to-png wireframe.txt --out=wireframe.png --font-size=14
+
+# Component library
+lofi-ascii components                                    # list all
+lofi-ascii components signup-form                        # print one
+```
+
+### Styles
+
+| Style | Output | Best for |
+|---|---|---|
+| `blocks` (default) | Unicode block + box-drawing, monochrome | UI screenshots, general-purpose |
+| `braille` | Braille dots, max density | Showing fine UI structure |
+| `lofi` | Pure 7-bit ASCII | Copy-paste anywhere safe |
+| `sketch` | Edge-emphasized | Outline-style wireframes |
+| `photo` | 256-color half-blocks + dithering | Terminal-only photo rendering |
+
+### Options
+
+| Flag | Default | Notes |
+|---|---|---|
+| `--style=NAME` | `blocks` | One of the above |
+| `--width=N` | `80` | Output width in chars (max 240) |
+| `--theme=light\|dark` | `light` | Inverts polarity for dark terminals |
+| `--mobile` / `--desktop` | desktop | Browser viewport for URL mode |
+| `--full-page` | off | Capture full scrollable page |
+| `--wait=MS` | `1500` | Wait before screenshot |
+| `--out=PATH` | auto-named | Override save path |
+| `--no-save` | off | Print only, skip file write |
+| `--stack` | side-by-side | `compare` orientation |
+| `--font-size=N` | `14` | `to-png` text size |
+
+## Using the Claude skill
+
+Once installed, just talk to Claude:
+
+> "Make an ASCII wireframe of stripe.com"
+> "Convert ~/Desktop/figma-export.png to lofi ASCII"
+> "Compare these two URLs side by side as ASCII"
+
+Claude picks the right mode automatically: **wireframe mode** (Claude visually inspects the image and emits a labeled, structured wireframe with semantic regions) for UI work, **render mode** (deterministic chafa) for photos and assets.
+
+The skill ships with a component library (`navbar`, `hero`, `pricing-table`, `signup-form`, `data-table`, `modal`, `mobile-nav`, etc.) Claude can stitch together when you describe a UI from scratch instead of providing a source image.
+
+## Worked example
+
+```bash
+$ lofi-ascii url https://stripe.com --style=blocks --width=80
+```
+
+```
+                                   ▗▃██████████████████████████▛▀▀▀▀▀█████▙▄▄▖
+  ▀▀▀▀   ╵   ▘     ╹ ▘▘╵  ▝      ╹▀▀██████████████████████████▋▂▂▂▂▂███████▀▉
+                                     ▝▜█████████▆▛█████████████████████████▙
+                                       ▀██████████▆▛████████████████████████▍
+                                        ▔▜██████████▇████████████████████████
+        ╺━━╼╼╺━━┅╍┅━╶━┉┉━┈                ▝▜█████████████████████████████████▌
+                                            ▀█████████████████████████████████
+        ▗▁┓▃▂▃▃▂▃┓▃╻▗╻▃▅▃▃▃▃▃▃ ▂▃▃ ▃▃▖▗▂▃ ▃▃▃▃████████████████████████████████▙
+        ▝ ╹▘▀▀▘▀ ╹▀╹▝╹╹▘ ▀▝▘▀ ▀╹╹▘▀▝▝▘▝▝▝▕▀▝▝╹╹▀▜████████████▛█████████████████▙
+         ▇▗╾▖▗▅┳┳▎┏┭╼▅┏━━▄▅┏┳▎▅ ┏┓▍▙▅┏ ▇┍┓▅▄━┏╍┏┓▎▜█████████▋▜▅▟▅█▛█████████████
+        ▕┛╾▀╼╹ ▘▝└┚▎┕┚┖┸▎┵┺▀┺┘▘▀▝┚┚┕┸┚▕┛╾▀╼┚▕╾▀┚╍┖┚▎╍▝└╴   ▀▘          ▔▜███████
+                                                                         ▀▜█████
+        ▗▇▇▇▇▇▇▇▇▎       ▂                                                 ▀████
+        ▝▀▀▀▀▀▀▀▀                                                            ███
+
+ ━━       ┯━┳━      ━┅━━╍      ╺▇▇▆╸      ┅┅┅┅╸      ╺┉        ▝              ▝█
+```
+
+Saved → `./ascii-stripe-com-blocks-20260513-211442.txt`
+
+## Why "lofi"?
+
+Because ASCII is the design tool you reach for when you don't want to think about pixels yet. Wireframes from chafa output capture *layout and density* without committing to anything. They paste cleanly into:
+
+- Claude conversations (the whole reason this exists)
+- GitHub issues, PR descriptions, README files
+- Linear tickets, Notion docs
+- Email and Slack (monospace-safe)
+- Comments inside source code
+
+No file format. No screenshot tool. Just text.
+
+## Dependencies
+
+- **`chafa`** — image-to-ASCII engine. `brew install chafa`.
+- **Google Chrome** (or Chromium) — only used for `url` and `screenshot` modes. The installer detects it.
+- **Python 3** — only used for `compare` and `to-png` size calculations. Ships with macOS.
+
+No Node or Playwright required.
+
+## Project layout
+
+```
+~/Code/lofi-ascii/
+├── bin/lofi-ascii          # main CLI (the only entrypoint)
+├── lib/                    # sourced modules
+│   ├── styles.sh           # chafa flag presets per style
+│   ├── render.sh           # image → ASCII
+│   ├── screenshot.sh       # URL → PNG (headless Chrome)
+│   ├── compare.sh          # side-by-side / stacked output
+│   ├── gallery.sh          # all styles for one input
+│   ├── to_png.sh           # ASCII → PNG (Chrome rendering)
+│   └── output.sh           # save policy + slug generation
+├── examples/               # reference wireframes (Claude models on these)
+├── components/             # composable ASCII UI components
+├── scripts/install.sh      # idempotent setup
+├── SKILL.md                # Claude-facing instructions
+└── README.md               # you are here
+```
+
+## Credits
+
+Built with [chafa](https://hpjansson.org/chafa/) (Hans Petter Jansson) — the gold-standard image-to-text engine. Inspired by [neethanwu/ascii-art](https://github.com/neethanwu/ascii-art) and [trabian/fluxwing-skills](https://github.com/trabian/fluxwing-skills), the two closest prior Claude skills in this space.
+
+## License
+
+MIT. See [LICENSE](./LICENSE).

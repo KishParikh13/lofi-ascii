@@ -1,0 +1,18 @@
+# Output assets the tool produces in the user's CWD.
+# (Doesn't apply to examples/ or components/ which ship with the repo.)
+/ascii-*.txt
+/ascii-*.png
+/screenshot-*.png
+/wireframe-*.txt
+/wireframe-*.png
+
+# Editor / OS
+.DS_Store
+*.swp
+.vscode/
+.idea/
+
+# Test fixtures we don't ship
+test-fixtures/*.png
+test-fixtures/*.jpg
+!test-fixtures/.gitkeep
