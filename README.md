@@ -7,7 +7,7 @@ A tiny, fast CLI + Claude skill for turning **images and webpages into ASCII art
 <p align="center"><sub>One command. The whole page → ASCII.</sub></p>
 
 ```bash
-lofi-ascii url https://www.apple.com --high-contrast --width=140
+lofi-ascii url https://www.apple.com --width=140
 ```
 
 ```
@@ -102,7 +102,7 @@ lofi-ascii components signup-form                        # print one
 | `--style=NAME` | `blocks` | One of the above |
 | `--width=N` | `80` | Output width in chars (max 240) |
 | `--theme=light\|dark` | `light` | Inverts polarity for dark terminals |
-| `--high-contrast` | off | Threshold-binarize the source first. Essential when light UI elements (white iPhones on a gray apple.com background) would otherwise vanish. The hero image above uses this. |
+| `--high-contrast` | off | Threshold-binarize the source first (legacy `url-pixel` flag). The default text-aware `url` mode no longer needs this — its tile-based renderer handles mixed-contrast subjects (dark + white + pink iPhones on one canvas) automatically. |
 | `--threshold=N` | `235` | Cutoff for `--high-contrast` (0-255). Higher catches more subtle elements. |
 | `--preprocess=MODE` | `none` | `threshold`, `contrast`, or `edges`. `--high-contrast` is a shorthand for `--preprocess=threshold`. |
 | `--mobile` / `--desktop` | desktop | Browser viewport for URL mode |
@@ -130,18 +130,21 @@ The skill ships with a component library (`navbar`, `hero`, `pricing-table`, `si
 The `assets/comparison.png` banner is the output of:
 
 ```bash
-lofi-ascii url https://www.apple.com --high-contrast --width=140
+lofi-ascii url https://www.apple.com --width=140
 lofi-ascii to-png ./ascii-www-apple-com-*.txt --out=hero.png
 ```
 
 What's happening:
 
-1. **Headless Chrome** opens apple.com and runs JS that walks the DOM, collecting every visible text node (with its bounding rect, font-size, and content) and every image-bearing element (`<picture>`, `<img>`, `<svg>`, `<video>`).
+1. **Headless Chrome** opens apple.com and runs JS that walks the DOM. It collects every visible text node (rect, font-size, content), every button-like element (`<button>`, anchors styled as buttons), every nav link, and every image-bearing element (`<picture>`, `<img>`, `<svg>`, `<video>`).
 2. The same Chrome session saves a screenshot.
-3. **The Python compositor** builds a character grid sized to your `--width`. For each image region, it crops the screenshot and runs that crop through `chafa`, then pastes the resulting ASCII into the grid at the right position. For each text node, it overwrites the grid with the actual text characters — clearing a small box around the text first so chafa fragments don't crowd the words.
+3. **The Python compositor** builds a character grid sized to your `--width`. For each image region, it crops the screenshot and renders it as a **wireframe-style ASCII**: per-tile histogram-stretched foreground mask combined with edge-detection. The result preserves *shape and structure* (silhouettes, bezels, camera bumps) without trying to be a faithful pixel render. Then it overlays:
+   - **Body text** (headings, paragraphs) — written as real characters
+   - **Buttons** — drawn as ASCII boxes (`┏━━┓ ┃ Learn more ┃ ┗━━┛` for filled, `┌──┐ │ Buy │ └──┘` for outline)
+   - **Nav row** — laid out at the top with the actual nav text
 4. Result: an ASCII page that you can actually *read*. "iPhone" is still "iPhone". "Learn more" is still a button labeled "Learn more". Only the iPhone product photos become art.
 
-The `--high-contrast` flag threshold-binarizes image crops before chafa runs — necessary when light UI elements (white iPhones on a gray apple.com background) would otherwise dissolve into the page.
+**Why wireframe-style instead of pixel-faithful?** A near-black iPhone on a light page would collapse to a solid `█` blob under naive brightness mapping — every pixel maxes out. Designers reading the ASCII don't need photo accuracy; they need *shape*. Per-tile normalization plus edges gives every subject (dark Pro, white iPhone, pink Air, side-profile iPhone) its own dynamic range, so each phone is recognizable.
 
 Here's a simpler example without preprocessing:
 
@@ -185,10 +188,9 @@ No file format. No screenshot tool. Just text.
 ## Dependencies
 
 - **`chafa`** — image-to-ASCII engine. `brew install chafa`.
-- **Google Chrome** (or Chromium) — only used for `url` and `screenshot` modes. The installer detects it.
-- **Python 3** — only used for `compare` and `to-png` size calculations. Ships with macOS.
-
-No Node or Playwright required.
+- **Google Chrome** (or Chromium) — used for `url` and `screenshot` modes. The installer detects it.
+- **Python 3** + **Pillow** — used by the text-aware compositor and `to-png` size calculations. Ships with macOS; Pillow installed by `scripts/install.sh`.
+- **Node + puppeteer-core** — used by the text-aware mode to drive headless Chrome with DOM extraction. Installed by `scripts/install.sh`. Falls back gracefully (uses pixel-only rendering) if Node is missing.
 
 ## Project layout
 
