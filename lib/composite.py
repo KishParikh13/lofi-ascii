@@ -241,12 +241,22 @@ def main():
 
     # ── 1. Image regions: render with brightness-ramp ───────────────────────
     pictures = [i for i in data.get("images", []) if i["tag"] in ("picture", "img", "video")]
-    pictures = [
-        p for p in pictures
-        if p["w"] >= 100 and p["h"] >= 100
-        and p["x"] >= 0 and p["x"] + p["w"] <= px_w
-        and p["y"] + p["h"] > y_start and p["y"] < y_end
-    ]
+    # Clip images that overflow the viewport horizontally rather than
+    # rejecting them — Stripe's hero gradient is a 1392-wide picture at
+    # x=337 (right edge past px_w), but the visible portion is the
+    # important part.
+    clipped = []
+    for p in pictures:
+        if p["w"] < 100 or p["h"] < 100:
+            continue
+        if p["y"] + p["h"] <= y_start or p["y"] >= y_end:
+            continue
+        x1 = max(0, p["x"])
+        x2 = min(px_w, p["x"] + p["w"])
+        if x2 - x1 < 100:
+            continue
+        clipped.append({**p, "x": x1, "w": x2 - x1})
+    pictures = clipped
     # Dedupe overlapping (prefer larger)
     used = []
     for p in sorted(pictures, key=lambda r: -(r["w"] * r["h"])):

@@ -148,56 +148,27 @@ What's happening:
 
 ## More examples
 
-All of these are real output from `lofi-ascii url <url> --width=100`. Text is read directly from the DOM; image regions are wireframe-rendered.
+Each of these is a real side-by-side from `lofi-ascii url <url> --width=140`: source screenshot on the left, ASCII output on the right.
 
-**stripe.com**
+### linear.app
 
-```
-              Financial infrastructure to grow your revenue.
-              Accept payments, offer financial services, and
+<p align="center"><img src="assets/examples/linear-app.png" alt="linear.app → lofi-ascii" width="900"></p>
 
-              implement custom revenue models—from your
+The Linear product screenshot becomes a recognizable dashboard wireframe: the sidebar, the active issue row, the activity feed, and the labelled "Performance / iOS" pills all survive.
 
-              first transaction to your billionth.
+### stripe.com
 
-              ┏━━━━━━━━━┓┏━━━━━━━━━━━━━━━━━━━━━┓
-              ┃Get star…┃┃ Sign up with Google ┃
-              ┗━━━━━━━━━┛┗━━━━━━━━━━━━━━━━━━━━━┛
-```
+<p align="center"><img src="assets/examples/stripe-com.png" alt="stripe.com → lofi-ascii" width="900"></p>
 
-**github.com**
+Stripe's colorful animated payments illustration is a 1392-wide `<picture>` element that overflows the viewport. The compositor clips it to the visible region and renders the gradient as a wireframe contour — preserving the *shape* of the flowing strokes alongside the readable headline and CTAs.
 
-```
-                               The future of building
+### github.com
 
+<p align="center"><img src="assets/examples/github-com.png" alt="github.com → lofi-ascii" width="900"></p>
 
-                                 happens together
+GitHub's hero is text + an inline `<video>` that lives mostly below the fold — only a thin strip is visible in the viewport, which the renderer correctly shows as a slim wireframe band at the bottom.
 
-                               Tools and trends evolve, but collaboration endures. With GitHub,
-                                developers, agents, and code come together on one platform.
-                                            ┏━━━━━━━━━━━━━━┓┏━━━━━━━━━━━━━━━━━━━━┓
-                           Enter your email ┃Sign up for G…┃┃ Try GitHub Copilot ┃
-                                            ┗━━━━━━━━━━━━━━┛┗━━━━━━━━━━━━━━━━━━━━┛
-```
-
-**vercel.com**
-
-```
-                                                       ┏━━━━━━━━━━━━━━━━━┓
-                                         Ship 26 is com┃ Get your ticket ┃
-                                                       ┗━━━━━━━━━━━━━━━━━┛
-
-                           Build and deploy on the AI Cloud.
-
-                               Vercel provides the developer tools and cloud infrastructure
-                               to build, scale, and secure a faster, more personalized web.
-
-                                     ┏━━━━━━━━━━━━┓┏━━━━━━━━━━━━┓
-                                     ┃DeployStart…┃┃ Get a Demo ┃
-                                     ┗━━━━━━━━━━━━┛┗━━━━━━━━━━━━┛
-```
-
-**Bump up `--width` for tighter labels.** At `--width=100` adjacent buttons may share a border or get truncated with `…`; at `--width=140` they breathe.
+> **Width tip:** `--width=140` is the sweet spot for desktop sites. Drop to `--width=100` for narrower contexts (it'll truncate longer button labels with `…`). The floor is 60.
 
 ### Stitched from the component library
 
