@@ -146,32 +146,134 @@ What's happening:
 
 **Why wireframe-style instead of pixel-faithful?** A near-black iPhone on a light page would collapse to a solid `█` blob under naive brightness mapping — every pixel maxes out. Designers reading the ASCII don't need photo accuracy; they need *shape*. Per-tile normalization plus edges gives every subject (dark Pro, white iPhone, pink Air, side-profile iPhone) its own dynamic range, so each phone is recognizable.
 
-Here's a simpler example without preprocessing:
+## More examples
+
+All of these are real output from `lofi-ascii url <url> --width=100`. Text is read directly from the DOM; image regions are wireframe-rendered.
+
+**stripe.com**
+
+```
+              Financial infrastructure to grow your revenue.
+              Accept payments, offer financial services, and
+
+              implement custom revenue models—from your
+
+              first transaction to your billionth.
+
+              ┏━━━━━━━━━┓┏━━━━━━━━━━━━━━━━━━━━━┓
+              ┃Get star…┃┃ Sign up with Google ┃
+              ┗━━━━━━━━━┛┗━━━━━━━━━━━━━━━━━━━━━┛
+```
+
+**github.com**
+
+```
+                               The future of building
+
+
+                                 happens together
+
+                               Tools and trends evolve, but collaboration endures. With GitHub,
+                                developers, agents, and code come together on one platform.
+                                            ┏━━━━━━━━━━━━━━┓┏━━━━━━━━━━━━━━━━━━━━┓
+                           Enter your email ┃Sign up for G…┃┃ Try GitHub Copilot ┃
+                                            ┗━━━━━━━━━━━━━━┛┗━━━━━━━━━━━━━━━━━━━━┛
+```
+
+**vercel.com**
+
+```
+                                                       ┏━━━━━━━━━━━━━━━━━┓
+                                         Ship 26 is com┃ Get your ticket ┃
+                                                       ┗━━━━━━━━━━━━━━━━━┛
+
+                           Build and deploy on the AI Cloud.
+
+                               Vercel provides the developer tools and cloud infrastructure
+                               to build, scale, and secure a faster, more personalized web.
+
+                                     ┏━━━━━━━━━━━━┓┏━━━━━━━━━━━━┓
+                                     ┃DeployStart…┃┃ Get a Demo ┃
+                                     ┗━━━━━━━━━━━━┛┗━━━━━━━━━━━━┛
+```
+
+**Bump up `--width` for tighter labels.** At `--width=100` adjacent buttons may share a border or get truncated with `…`; at `--width=140` they breathe.
+
+### Stitched from the component library
+
+`lofi-ascii components` ships pre-made ASCII blocks you can drop into READMEs, design docs, or feed to Claude as a wireframe scaffold:
 
 ```bash
-$ lofi-ascii url https://stripe.com --style=blocks --width=80
+lofi-ascii components signup-form
 ```
 
 ```
-                                   ▗▃██████████████████████████▛▀▀▀▀▀█████▙▄▄▖
-  ▀▀▀▀   ╵   ▘     ╹ ▘▘╵  ▝      ╹▀▀██████████████████████████▋▂▂▂▂▂███████▀▉
-                                     ▝▜█████████▆▛█████████████████████████▙
-                                       ▀██████████▆▛████████████████████████▍
-                                        ▔▜██████████▇████████████████████████
-        ╺━━╼╼╺━━┅╍┅━╶━┉┉━┈                ▝▜█████████████████████████████████▌
-                                            ▀█████████████████████████████████
-        ▗▁┓▃▂▃▃▂▃┓▃╻▗╻▃▅▃▃▃▃▃▃ ▂▃▃ ▃▃▖▗▂▃ ▃▃▃▃████████████████████████████████▙
-        ▝ ╹▘▀▀▘▀ ╹▀╹▝╹╹▘ ▀▝▘▀ ▀╹╹▘▀▝▝▘▝▝▝▕▀▝▝╹╹▀▜████████████▛█████████████████▙
-         ▇▗╾▖▗▅┳┳▎┏┭╼▅┏━━▄▅┏┳▎▅ ┏┓▍▙▅┏ ▇┍┓▅▄━┏╍┏┓▎▜█████████▋▜▅▟▅█▛█████████████
-        ▕┛╾▀╼╹ ▘▝└┚▎┕┚┖┸▎┵┺▀┺┘▘▀▝┚┚┕┸┚▕┛╾▀╼┚▕╾▀┚╍┖┚▎╍▝└╴   ▀▘          ▔▜███████
-                                                                         ▀▜█████
-        ▗▇▇▇▇▇▇▇▇▎       ▂                                                 ▀████
-        ▝▀▀▀▀▀▀▀▀                                                            ███
-
- ━━       ┯━┳━      ━┅━━╍      ╺▇▇▆╸      ┅┅┅┅╸      ╺┉        ▝              ▝█
+              ┌─────────────────────────────────────────┐
+              │  Create your account                    │
+              │                                         │
+              │  ┌─────────────────────────────────────┐│
+              │  │ Email                               ││
+              │  │ you@example.com                     ││
+              │  └─────────────────────────────────────┘│
+              │                                         │
+              │  ┌─────────────────────────────────────┐│
+              │  │ Password                            ││
+              │  │ ••••••••                            ││
+              │  └─────────────────────────────────────┘│
+              │                                         │
+              │  ▢ I agree to Terms and Privacy         │
+              │                                         │
+              │  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓│
+              │  ┃         Create account              ┃│
+              │  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛│
+              └─────────────────────────────────────────┘
 ```
 
-Saved → `./ascii-stripe-com-blocks-20260513-211442.txt`
+```bash
+lofi-ascii components pricing-table
+```
+
+```
+  ─── Pricing ─────────────────────────────────────────────────────────────────
+
+  ┌──────────────┐  ┏━━━━━━━━━━━━━━┓  ┌──────────────┐
+  │ Free         │  ┃ Pro          ┃  │ Enterprise   │
+  │              │  ┃ ★ Most pop.  ┃  │              │
+  │ $0 / mo      │  ┃ $29 / mo     ┃  │ Custom       │
+  │              │  ┃              ┃  │              │
+  │ ◯ Feature    │  ┃ ● Feature    ┃  │ ● Feature    │
+  │ ◯ Feature    │  ┃ ● Feature    ┃  │ ● Feature    │
+  │ ◯ Feature    │  ┃ ● Feature    ┃  │ ● SSO + SLA  │
+  │              │  ┃              ┃  │              │
+  │ [  Start  ]  │  ┃ [  Choose  ] ┃  │ [ Contact  ] │
+  └──────────────┘  ┗━━━━━━━━━━━━━━┛  └──────────────┘
+```
+
+Run `lofi-ascii components` to see the full list — `navbar`, `hero`, `cta-banner`, `feature-grid`, `data-table`, `modal`, `mobile-nav`, `notifications`, `card`, `footer`, `form-fields`.
+
+### Local image → ASCII (`render`)
+
+```bash
+lofi-ascii render hero.png --style=blocks --width=80     # Unicode blocks
+lofi-ascii render hero.png --style=braille --width=60    # max density
+lofi-ascii render hero.png --style=lofi    --width=60    # pure 7-bit ASCII
+lofi-ascii render hero.png --style=sketch  --width=80    # edge-emphasized
+```
+
+### Side-by-side comparisons
+
+```bash
+lofi-ascii compare https://stripe.com https://square.com --width=60
+lofi-ascii compare before.png after.png --stack
+```
+
+### ASCII back to PNG
+
+For Figma, design docs, or anywhere PNG is the destination:
+
+```bash
+lofi-ascii to-png wireframe.txt --out=wireframe.png --font-size=14
+```
 
 ## Why "lofi"?
 
