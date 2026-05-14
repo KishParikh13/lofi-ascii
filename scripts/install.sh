@@ -34,6 +34,27 @@ else
   echo "    Install: https://www.google.com/chrome/"
 fi
 
+# ── Node deps for text-aware mode ─────────────────────────────────────────────
+if command -v npm >/dev/null 2>&1; then
+  if [[ ! -d "$REPO_DIR/node/node_modules" ]]; then
+    echo "  • installing puppeteer-core for text-aware mode…"
+    (cd "$REPO_DIR/node" && npm install --silent 2>&1 | tail -3)
+    echo "  ✓ puppeteer-core installed"
+  else
+    echo "  ✓ puppeteer-core already installed"
+  fi
+else
+  echo "  ⚠ npm not found — text-aware mode will be unavailable."
+fi
+
+# ── Python deps for compositor ────────────────────────────────────────────────
+if python3 -c "import PIL" 2>/dev/null; then
+  echo "  ✓ Pillow (PIL) available"
+else
+  echo "  • installing Pillow for image processing…"
+  python3 -m pip install --quiet pillow 2>&1 | tail -2
+fi
+
 # ── PATH wiring ───────────────────────────────────────────────────────────────
 LOCAL_BIN="$HOME/.local/bin"
 mkdir -p "$LOCAL_BIN"

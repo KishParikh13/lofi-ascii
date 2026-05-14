@@ -35,6 +35,8 @@ source "$LIB_DIR/gallery.sh"
 source "$LIB_DIR/to_png.sh"
 # shellcheck source=../lib/preprocess.sh
 source "$LIB_DIR/preprocess.sh"
+# shellcheck source=../lib/text_aware.sh
+source "$LIB_DIR/text_aware.sh"
 
 VERSION="0.1.0"
 
@@ -44,7 +46,8 @@ lofi-ascii v$VERSION — convert images and webpages into ASCII art
 
 USAGE
   lofi-ascii render <image-path> [options]
-  lofi-ascii url <url> [options]
+  lofi-ascii url <url> [options]                    # text-aware by default
+  lofi-ascii url-pixel <url> [options]              # legacy chafa-only mode
   lofi-ascii screenshot <url> [options]
   lofi-ascii gallery <input> [options]              # render one input in every style
   lofi-ascii compare <input-a> <input-b> [options]  # side-by-side comparison
@@ -73,7 +76,8 @@ OPTIONS
 
 EXAMPLES
   lofi-ascii render ~/Desktop/hero.png --style=blocks --width=100
-  lofi-ascii url https://stripe.com --style=blocks --mobile
+  lofi-ascii url https://www.apple.com --width=140                # text-aware
+  lofi-ascii url-pixel https://stripe.com --style=blocks          # pixel-only
   lofi-ascii screenshot https://example.com --out=example.png --full-page
   lofi-ascii gallery https://stripe.com --width=60      # see all styles
   lofi-ascii compare https://stripe.com https://square.com --width=60
@@ -198,6 +202,8 @@ while [[ $# -gt 0 ]]; do
     --high-contrast|--crisp) PREPROCESS="threshold" ;;
     --preprocess=*) PREPROCESS="${1#*=}" ;;
     --threshold=*) PP_THRESHOLD="${1#*=}" ;;
+    --crop=*) IFS=':' read -r CROP_START CROP_END <<< "${1#*=}" ;;
+    --min-font-size=*) MIN_FS="${1#*=}" ;;
     --stack) COMPARE_STACK=1 ;;
     --side) COMPARE_STACK=0 ;;
     --font-size=*) FONT_SIZE="${1#*=}" ;;
@@ -217,7 +223,32 @@ case "$SUBCMD" in
     handle_output "$output" "$INPUT" "$STYLE" "$OUT" "$NO_SAVE"
     ;;
   url)
+    # Text-aware mode: extract DOM text + image regions, render only images
+    # as ASCII, keep real text in place.
     [[ -z "$INPUT" ]] && { echo "url: missing <url>" >&2; usage; exit 1; }
+    tmp_out=$(mktemp -t lofi-ascii-out.XXXXXX).txt
+    hc=0
+    [[ "$PREPROCESS" == "threshold" ]] && hc=1
+    if render_url_text_aware "$INPUT" "$tmp_out" "1440x1800" "$WIDTH" \
+         "${CROP_START:-70}" "${CROP_END:-820}" "$hc" "$THEME" \
+         "${MIN_FS:-14}" "$WAIT_MS" "$STYLE"; then
+      output=$(cat "$tmp_out")
+      handle_output "$output" "$INPUT" "blocks-text-aware" "$OUT" "$NO_SAVE"
+    else
+      echo "Falling back to pixel-only mode…" >&2
+      tmp_png=$(mktemp -t lofi-ascii.XXXXXX).png
+      take_screenshot "$INPUT" "$tmp_png" "$VIEWPORT" "$FULL_PAGE" "$WAIT_MS"
+      pp_input=$(preprocess_image "$tmp_png" "$PREPROCESS" "$PP_THRESHOLD")
+      output=$(render_image "$pp_input" "$STYLE" "$WIDTH" "" "$THEME")
+      [[ "$pp_input" != "$tmp_png" ]] && rm -f "$pp_input"
+      handle_output "$output" "$INPUT" "$STYLE" "$OUT" "$NO_SAVE"
+      rm -f "$tmp_png"
+    fi
+    rm -f "$tmp_out"
+    ;;
+  url-pixel)
+    # Legacy mode: full screenshot piped to chafa, no DOM extraction.
+    [[ -z "$INPUT" ]] && { echo "url-pixel: missing <url>" >&2; usage; exit 1; }
     tmp_png=$(mktemp -t lofi-ascii.XXXXXX).png
     take_screenshot "$INPUT" "$tmp_png" "$VIEWPORT" "$FULL_PAGE" "$WAIT_MS"
     pp_input=$(preprocess_image "$tmp_png" "$PREPROCESS" "$PP_THRESHOLD")

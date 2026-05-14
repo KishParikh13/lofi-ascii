@@ -6,6 +6,9 @@
 /wireframe-*.txt
 /wireframe-*.png
 
+# Node deps (installed via scripts/install.sh)
+node/node_modules/
+
 # Editor / OS
 .DS_Store
 *.swp

@@ -26,13 +26,14 @@ lofi-ascii url https://www.apple.com --high-contrast --width=140
 
 ## What it does
 
-- **`render`** — image → ASCII art (Unicode blocks, braille, pure ASCII, color photo, edge sketch). Deterministic, fast, powered by [`chafa`](https://hpjansson.org/chafa/).
-- **`url`** — webpage → screenshot → ASCII. Headless Chrome under the hood, no Playwright install needed.
-- **`wireframe`** (via Claude skill) — *Claude* looks at the image and emits a structured, labeled ASCII wireframe with box-drawing characters. Better than pixel ASCII for UI work because it understands "this is a button" and labels it accordingly.
+- **`url`** — **text-aware webpage → ASCII** (default). Real text from the DOM stays as readable text. Images (`<picture>`, `<img>`, `<video>`, `<svg>`) get pixel-rendered as ASCII via [`chafa`](https://hpjansson.org/chafa/) and composited back at the right positions. Headings, buttons, nav copy stay legible — only the photographs become art.
+- **`url-pixel`** — legacy mode. Whole page through chafa. Useful when you specifically want a pixel-style render of the entire page (no DOM parsing).
+- **`render`** — image file → ASCII (Unicode blocks, braille, pure ASCII, color photo, edge sketch). Deterministic, fast.
+- **`wireframe`** (via Claude skill) — *Claude* looks at the image and emits a structured, labeled ASCII wireframe with box-drawing characters. Best for UI work because it understands "this is a button" and labels it accordingly.
 - **`gallery`** — render one input in every style for quick comparison.
 - **`compare`** — two inputs side-by-side (or stacked). Great for A/B previews or before/after.
-- **`to-png`** — render an ASCII file back to a PNG image, perfect for embedding in Figma, design docs, README hero images.
-- **`components`** — a library of pre-made ASCII components (navbar, hero, pricing, signup form, modal, data table, etc.) you can compose by hand.
+- **`to-png`** — render an ASCII file back to a PNG, perfect for embedding in Figma, design docs, READMEs.
+- **`components`** — a library of pre-made ASCII components (navbar, hero, pricing, signup form, modal, data table, etc.).
 
 ## Install
 
@@ -124,16 +125,23 @@ Claude picks the right mode automatically: **wireframe mode** (Claude visually i
 
 The skill ships with a component library (`navbar`, `hero`, `pricing-table`, `signup-form`, `data-table`, `modal`, `mobile-nav`, etc.) Claude can stitch together when you describe a UI from scratch instead of providing a source image.
 
-## Worked examples
+## How the apple.com hero is made
 
-The `assets/hero.png` image above is the output of one command:
+The `assets/comparison.png` banner is the output of:
 
 ```bash
 lofi-ascii url https://www.apple.com --high-contrast --width=140
-lofi-ascii to-png ./ascii-apple-com-blocks-*.txt --out=apple.png
+lofi-ascii to-png ./ascii-www-apple-com-*.txt --out=hero.png
 ```
 
-The `--high-contrast` flag is what makes the lighter iPhones visible — without it, only the dark Pro renders. The trick: threshold-binarize the screenshot (every pixel below 235 → black, else white) before passing to chafa. Crisp B/W edges produce crisp ASCII edges.
+What's happening:
+
+1. **Headless Chrome** opens apple.com and runs JS that walks the DOM, collecting every visible text node (with its bounding rect, font-size, and content) and every image-bearing element (`<picture>`, `<img>`, `<svg>`, `<video>`).
+2. The same Chrome session saves a screenshot.
+3. **The Python compositor** builds a character grid sized to your `--width`. For each image region, it crops the screenshot and runs that crop through `chafa`, then pastes the resulting ASCII into the grid at the right position. For each text node, it overwrites the grid with the actual text characters — clearing a small box around the text first so chafa fragments don't crowd the words.
+4. Result: an ASCII page that you can actually *read*. "iPhone" is still "iPhone". "Learn more" is still a button labeled "Learn more". Only the iPhone product photos become art.
+
+The `--high-contrast` flag threshold-binarizes image crops before chafa runs — necessary when light UI elements (white iPhones on a gray apple.com background) would otherwise dissolve into the page.
 
 Here's a simpler example without preprocessing:
 
