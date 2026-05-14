@@ -43,7 +43,7 @@ ascii_to_png() {
     margin: 0;
     font-family: "Menlo", "SF Mono", "JetBrains Mono", "Consolas", monospace;
     font-size: ${font_size}px;
-    line-height: 1.15;
+    line-height: 1.0;
     letter-spacing: 0;
     color: ${fg};
     white-space: pre;
@@ -69,7 +69,7 @@ EOF
   local rows cols
   rows=$(printf '%s' "$ascii" | python3 -c "import sys; print(sum(1 for _ in sys.stdin))")
   cols=$(printf '%s' "$ascii" | python3 -c "import sys; print(max((len(l.rstrip('\n')) for l in sys.stdin), default=0))")
-  local h=$(( rows * font_size * 115 / 100 + 60 ))
+  local h=$(( rows * font_size + 60 ))
   local w=$(( cols * font_size * 62 / 100 + 60 ))
   (( w < 400 )) && w=400
   (( h < 200 )) && h=200

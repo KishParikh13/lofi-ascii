@@ -2,7 +2,13 @@
 
 A tiny, fast CLI + Claude skill for turning **images and webpages into ASCII art** — built for design engineers who want quick lofi wireframes, ASCII references, and screenshot mockups they can paste anywhere markdown renders.
 
-<p align="center"><img src="assets/hero.png" alt="lofi-ascii rendered wireframe" width="540"></p>
+<p align="center"><img src="assets/hero.png" alt="apple.com rendered as ASCII via lofi-ascii" width="780"></p>
+
+<p align="center"><sub>apple.com → ASCII, in one command:</sub></p>
+
+```bash
+lofi-ascii url https://www.apple.com --high-contrast --width=140
+```
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -95,6 +101,9 @@ lofi-ascii components signup-form                        # print one
 | `--style=NAME` | `blocks` | One of the above |
 | `--width=N` | `80` | Output width in chars (max 240) |
 | `--theme=light\|dark` | `light` | Inverts polarity for dark terminals |
+| `--high-contrast` | off | Threshold-binarize the source first. Essential when light UI elements (white iPhones on a gray apple.com background) would otherwise vanish. The hero image above uses this. |
+| `--threshold=N` | `235` | Cutoff for `--high-contrast` (0-255). Higher catches more subtle elements. |
+| `--preprocess=MODE` | `none` | `threshold`, `contrast`, or `edges`. `--high-contrast` is a shorthand for `--preprocess=threshold`. |
 | `--mobile` / `--desktop` | desktop | Browser viewport for URL mode |
 | `--full-page` | off | Capture full scrollable page |
 | `--wait=MS` | `1500` | Wait before screenshot |
@@ -115,7 +124,18 @@ Claude picks the right mode automatically: **wireframe mode** (Claude visually i
 
 The skill ships with a component library (`navbar`, `hero`, `pricing-table`, `signup-form`, `data-table`, `modal`, `mobile-nav`, etc.) Claude can stitch together when you describe a UI from scratch instead of providing a source image.
 
-## Worked example
+## Worked examples
+
+The `assets/hero.png` image above is the output of one command:
+
+```bash
+lofi-ascii url https://www.apple.com --high-contrast --width=140
+lofi-ascii to-png ./ascii-apple-com-blocks-*.txt --out=apple.png
+```
+
+The `--high-contrast` flag is what makes the lighter iPhones visible — without it, only the dark Pro renders. The trick: threshold-binarize the screenshot (every pixel below 235 → black, else white) before passing to chafa. Crisp B/W edges produce crisp ASCII edges.
+
+Here's a simpler example without preprocessing:
 
 ```bash
 $ lofi-ascii url https://stripe.com --style=blocks --width=80

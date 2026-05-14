@@ -33,6 +33,8 @@ source "$LIB_DIR/compare.sh"
 source "$LIB_DIR/gallery.sh"
 # shellcheck source=../lib/to_png.sh
 source "$LIB_DIR/to_png.sh"
+# shellcheck source=../lib/preprocess.sh
+source "$LIB_DIR/preprocess.sh"
 
 VERSION="0.1.0"
 
@@ -62,6 +64,10 @@ OPTIONS
   --desktop         Use desktop viewport (1440x900)
   --full-page       Capture full scrollable page (screenshot mode only)
   --wait=MS         Wait MS milliseconds before screenshot (default: 1500)
+  --high-contrast   Threshold-binarize the source before rendering (best for UI screenshots
+                    with light-on-light elements that otherwise vanish in plain chafa).
+  --threshold=N     Cutoff for --high-contrast (0-255, default 235; higher catches more)
+  --preprocess=MODE One of: threshold, contrast, edges, none (default none)
   -h, --help        Show this help
   -v, --version     Show version
 
@@ -145,6 +151,8 @@ WIDTH="80"
 OUT=""
 NO_SAVE=0
 THEME="light"   # light = invert (markdown/chat); dark = no invert (terminal)
+PREPROCESS="none"  # none | threshold | contrast | edges
+PP_THRESHOLD=235
 VIEWPORT="1280x800"
 FULL_PAGE=0
 WAIT_MS=1500
@@ -187,6 +195,9 @@ while [[ $# -gt 0 ]]; do
     --desktop) VIEWPORT="1440x900" ;;
     --full-page) FULL_PAGE=1 ;;
     --wait=*) WAIT_MS="${1#*=}" ;;
+    --high-contrast|--crisp) PREPROCESS="threshold" ;;
+    --preprocess=*) PREPROCESS="${1#*=}" ;;
+    --threshold=*) PP_THRESHOLD="${1#*=}" ;;
     --stack) COMPARE_STACK=1 ;;
     --side) COMPARE_STACK=0 ;;
     --font-size=*) FONT_SIZE="${1#*=}" ;;
@@ -200,14 +211,18 @@ case "$SUBCMD" in
   render)
     [[ -z "$INPUT" ]] && { echo "render: missing <image-path>" >&2; usage; exit 1; }
     [[ -f "$INPUT" ]] || { echo "render: file not found: $INPUT" >&2; exit 1; }
-    output=$(render_image "$INPUT" "$STYLE" "$WIDTH" "" "$THEME")
+    pp_input=$(preprocess_image "$INPUT" "$PREPROCESS" "$PP_THRESHOLD")
+    output=$(render_image "$pp_input" "$STYLE" "$WIDTH" "" "$THEME")
+    [[ "$pp_input" != "$INPUT" ]] && rm -f "$pp_input"
     handle_output "$output" "$INPUT" "$STYLE" "$OUT" "$NO_SAVE"
     ;;
   url)
     [[ -z "$INPUT" ]] && { echo "url: missing <url>" >&2; usage; exit 1; }
     tmp_png=$(mktemp -t lofi-ascii.XXXXXX).png
     take_screenshot "$INPUT" "$tmp_png" "$VIEWPORT" "$FULL_PAGE" "$WAIT_MS"
-    output=$(render_image "$tmp_png" "$STYLE" "$WIDTH" "" "$THEME")
+    pp_input=$(preprocess_image "$tmp_png" "$PREPROCESS" "$PP_THRESHOLD")
+    output=$(render_image "$pp_input" "$STYLE" "$WIDTH" "" "$THEME")
+    [[ "$pp_input" != "$tmp_png" ]] && rm -f "$pp_input"
     handle_output "$output" "$INPUT" "$STYLE" "$OUT" "$NO_SAVE"
     rm -f "$tmp_png"
     ;;
