@@ -2,9 +2,9 @@
 
 A tiny, fast CLI + Claude skill for turning **images and webpages into ASCII art** — built for design engineers who want quick lofi wireframes, ASCII references, and screenshot mockups they can paste anywhere markdown renders.
 
-<p align="center"><img src="assets/hero.png" alt="apple.com rendered as ASCII via lofi-ascii" width="780"></p>
+<p align="center"><img src="assets/comparison.png" alt="apple.com on the left, lofi-ascii rendering on the right" width="900"></p>
 
-<p align="center"><sub>apple.com → ASCII, in one command:</sub></p>
+<p align="center"><sub>One command. The whole page → ASCII.</sub></p>
 
 ```bash
 lofi-ascii url https://www.apple.com --high-contrast --width=140
