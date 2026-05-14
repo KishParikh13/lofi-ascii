@@ -307,6 +307,7 @@ def main():
                     grid[gr][gc] = ch
 
     # ── 2. Nav row (force-include regardless of font size) ──────────────────
+    nav_written = set()
     nav_items = data.get("nav", [])
     if not args.no_nav and nav_items:
         # Drop logo / cart / micro items so the others have breathing room
@@ -356,18 +357,31 @@ def main():
                     line = " " * pad_left + line
                     for i, ch in enumerate(line[:cols]):
                         grid[nav_row][i] = ch
+                        nav_written.add((nav_row, i))
                 else:
                     for c, text in positions:
                         for i, ch in enumerate(text):
                             gc = c + i
                             if 0 <= gc < cols:
                                 grid[nav_row][gc] = ch
+                                nav_written.add((nav_row, gc))
 
     # ── 3. Body text (headings, body copy) ──────────────────────────────────
     # Rendered BEFORE buttons so buttons sit on top — otherwise a body
     # paragraph one row above a button would clear the button's top
     # border when its clear-pad-below reaches into the button row.
-    for t in data.get("texts", []):
+    #
+    # Render headlines first (largest font size). Without this, a subtitle
+    # text whose clear-region happens to cover the headline's row would
+    # wipe the headline. Drawing largest-first means smaller text only
+    # clears empty area (or its own previous self).
+    sorted_texts = sorted(
+        [t for t in data.get("texts", [])],
+        key=lambda t: -t["fontSize"],
+    )
+    written_text_cells = set()  # (row, col) cells holding rendered chars
+
+    for t in sorted_texts:
         if t["fontSize"] < args.min_font_size:
             continue
         if t["y"] + t["h"] < y_start or t["y"] >= y_end:
@@ -388,6 +402,10 @@ def main():
         c_hi = min(cols, col + clear_w + clear_pad_x)
         for r in range(r_lo, r_hi):
             for c in range(c_lo, c_hi):
+                # Don't clear a cell that already holds rendered text
+                # (from nav or earlier larger text).
+                if (r, c) in written_text_cells or (r, c) in nav_written:
+                    continue
                 grid[r][c] = " "
         max_chars = cols - col
         if max_chars <= 0:
@@ -397,6 +415,7 @@ def main():
             gc = col + i
             if 0 <= gc < cols:
                 grid[row][gc] = ch
+                written_text_cells.add((row, gc))
 
     # ── 4. Buttons: render as ASCII boxes on top of everything ──────────────
     # Two-pass: first compute every button's footprint (with a 1-col
@@ -460,7 +479,12 @@ def main():
     button_specs = [s for s in button_specs if s is not None]
 
     # Pass 2: clear all footprints, then draw all boxes.
+    # Skip cells that hold rendered text (nav or body) so adjacent labels
+    # aren't eaten by a button's outer margin clear.
+    protected = written_text_cells | nav_written
     for (r, c) in cleared_cells:
+        if (r, c) in protected:
+            continue
         grid[r][c] = " "
     for spec in button_specs:
         col = spec["col"]; row = spec["row"]

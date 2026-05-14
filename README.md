@@ -199,13 +199,18 @@ No file format. No screenshot tool. Just text.
 ├── bin/lofi-ascii          # main CLI (the only entrypoint)
 ├── lib/                    # sourced modules
 │   ├── styles.sh           # chafa flag presets per style
-│   ├── render.sh           # image → ASCII
+│   ├── render.sh           # image → ASCII (chafa)
 │   ├── screenshot.sh       # URL → PNG (headless Chrome)
+│   ├── text_aware.sh       # url mode wrapper (extract + composite)
+│   ├── composite.py        # the compositor — DOM + screenshot → ASCII grid
 │   ├── compare.sh          # side-by-side / stacked output
 │   ├── gallery.sh          # all styles for one input
 │   ├── to_png.sh           # ASCII → PNG (Chrome rendering)
 │   └── output.sh           # save policy + slug generation
-├── examples/               # reference wireframes (Claude models on these)
+├── node/
+│   ├── extract.js          # puppeteer DOM walker (text/buttons/nav/images)
+│   └── package.json        # puppeteer-core dep
+├── examples/               # canonical output + reference wireframes
 ├── components/             # composable ASCII UI components
 ├── scripts/install.sh      # idempotent setup
 ├── SKILL.md                # Claude-facing instructions

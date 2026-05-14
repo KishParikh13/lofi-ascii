@@ -69,6 +69,15 @@ const CHROME = process.env.CHROME_PATH ||
         if (!visible(rect)) return;
         if (rect.width < 40 || rect.height < 18) return;
         if (!isButtonish(el)) return;
+        // Skip outline-style buttons that live inside the nav. These are
+        // typically nav links with a subtle hover border, not standalone
+        // CTAs — they should render as nav text, not boxed buttons. The
+        // primary CTAs (filled) inside a nav still get boxed.
+        const inNav = el.closest('nav, header, [role="navigation"]');
+        const cs0 = getComputedStyle(el);
+        const bg0 = cs0.backgroundColor;
+        const hasBg0 = bg0 && bg0 !== 'rgba(0, 0, 0, 0)' && bg0 !== 'transparent';
+        if (inNav && !hasBg0) return;
         const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
         if (!text || text.length > 60) return;
         buttonEls.add(el);
@@ -137,11 +146,32 @@ const CHROME = process.env.CHROME_PATH ||
             weight: cs.fontWeight,
           });
         } else {
+          // Multi-rect text (line-wrapped). Slice proportionally to rect
+          // widths, but snap each cut to the nearest whitespace so words
+          // aren't broken mid-glyph (e.g. "building" → "buildin"+"g").
           const totalW = rects.reduce((s, r) => s + r.width, 0);
           const chars = text.length;
           let offset = 0;
-          for (const r of rects) {
-            const n = Math.max(1, Math.round((r.width / totalW) * chars));
+          for (let ri = 0; ri < rects.length; ri++) {
+            const r = rects[ri];
+            let n = Math.max(1, Math.round((r.width / totalW) * chars));
+            // For all rects except the last, snap n forward/backward to
+            // the nearest whitespace within ~6 chars.
+            if (ri < rects.length - 1) {
+              const target = offset + n;
+              let bestCut = target;
+              for (let d = 0; d <= 8; d++) {
+                if (target + d < text.length && /\s/.test(text[target + d])) {
+                  bestCut = target + d + 1; break;
+                }
+                if (target - d > offset && /\s/.test(text[target - d])) {
+                  bestCut = target - d + 1; break;
+                }
+              }
+              n = Math.max(1, bestCut - offset);
+            } else {
+              n = chars - offset;
+            }
             const slice = text.slice(offset, offset + n);
             offset += n;
             if (!slice.trim()) continue;

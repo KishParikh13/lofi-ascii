@@ -5,10 +5,11 @@ description: Use when the user wants to convert an image, screenshot, Figma expo
 
 # lofi-ascii
 
-A two-mode skill that turns images, screenshots, and webpages into ASCII art:
+A three-mode skill that turns images, screenshots, and webpages into ASCII art:
 
-- **`render` mode** — fast, deterministic pixel→ASCII via `chafa`. Best for photos, logos, icons, and any time you want a "snapshot" of an image.
-- **`wireframe` mode** — *you* (Claude) look at the image and emit a structured, semantically labeled ASCII wireframe. Best for UI screenshots, Figma exports, and design conversations.
+- **`url` mode (text-aware, default for URLs)** — headless Chrome opens the page, the extractor walks the DOM and reports text nodes, button-like elements, nav links, and image rects with their bounding boxes. The compositor lays everything out: real text stays as readable characters, buttons render as ASCII boxes (`┏━━┓ ┃ Learn more ┃ ┗━━┛` for filled, `┌──┐ │ Buy │ └──┘` for outline), nav as a top text row, and image regions as a *wireframe-style* ASCII render (per-tile histogram-stretched foreground mask + edges — so the silhouette and structure show, not just a brightness ramp). Best for any URL the user gives you.
+- **`render` mode** — fast, deterministic pixel→ASCII via `chafa`. Best for photos, logos, icons, and local image files the user provides.
+- **`wireframe` mode** — *you* (Claude) look at the image and emit a structured, semantically labeled ASCII wireframe. Best when the user wants a *clean* design wireframe (labels, sections, no rendering noise) rather than a faithful page render.
 
 The CLI binary lives at `~/Code/lofi-ascii/bin/lofi-ascii` (symlinked into PATH via the install script). All paths in this file assume that location.
 
@@ -18,15 +19,51 @@ Pick the mode based on what the user is asking for:
 
 | User said... | Use this mode |
 |---|---|
-| "wireframe", "mockup", "lofi", "ASCII wireframe", "convert this UI" | **wireframe** |
+| "ascii this URL", "convert apple.com to ASCII", "ascii of stripe.com" | **url** (text-aware, default) |
+| "wireframe", "mockup", "lofi wireframe", "clean wireframe of this UI" | **wireframe** (Claude-generated) |
 | "ascii-ify", "ASCII art", "convert image to ASCII", "make ASCII of this photo/logo" | **render** |
-| Provided a URL with no further direction | **wireframe** (URLs are almost always UI) |
+| Provided a URL with no further direction | **url** (the text-aware compositor is the showcase — keeps text readable) |
 | Provided a photo/illustration with no further direction | **render** |
-| Unclear | Default to **wireframe** unless the image is obviously a photo/illustration (no UI structure visible) |
+| Unclear | Default: URL → **url**, local image → **render**, "wireframe" mentioned → **wireframe** |
 
-The user can always override: "use render mode" or "no, do a pixel ASCII version".
+The user can always override: "use render mode for that URL" or "no, do a Claude-drawn wireframe".
 
-## Mode: render
+## Mode: url (text-aware, default for webpages)
+
+Just shell out to the CLI. `url` is now text-aware by default — it uses Node + puppeteer-core to drive headless Chrome, extracts the DOM, and composites with Python+Pillow.
+
+```bash
+# Recommended canonical example — apple.com hero
+lofi-ascii url https://www.apple.com --width=140
+
+# Other sites
+lofi-ascii url https://stripe.com --width=140
+lofi-ascii url https://linear.app --width=140
+lofi-ascii url https://github.com --width=140
+
+# Mobile or desktop viewport
+lofi-ascii url https://example.com --mobile --width=80
+lofi-ascii url https://example.com --desktop --full-page
+
+# Skip file save (chat-only)
+lofi-ascii url https://example.com --no-save
+```
+
+**Width recommendation:** `--width=140` is the sweet spot for desktop sites — it gives buttons, nav, and images enough room to render legibly. `--width=80` is the floor (buttons may get truncated with ellipsis). Don't go below 60.
+
+**The output:**
+- The nav row appears at the top with the actual link text.
+- Headlines and body copy are real characters (not pixel renders).
+- Buttons are ASCII boxes — `┏━━┓` for filled (primary CTAs), `┌──┐` for outline (secondary).
+- Image regions become wireframe-style ASCII: silhouettes + edges, *not* a brightness raster. A black iPhone, a white iPhone, and a pink iPhone on the same canvas each get their own dynamic range via per-tile histogram stretching.
+- Overlapping adjacent buttons get their text truncated with `…` instead of overlapping borders.
+- Text that wraps across lines snaps to word boundaries (no "buildin/g" splits).
+
+Captures ASCII on stdout (relay to the user, wrapped in a triple-backtick code block so spacing is preserved). The "Saved → path" message is on stderr — surface that path to the user.
+
+**Legacy fallback:** `lofi-ascii url-pixel <url>` runs the whole page through chafa (no DOM extraction). Use only if the user explicitly asks for a pixel-only render of a webpage.
+
+## Mode: render (local images, photos, logos)
 
 Shell out to the `lofi-ascii` CLI. It handles screenshotting (if URL), chafa invocation, file saving, and inline output.
 
@@ -34,24 +71,15 @@ Shell out to the `lofi-ascii` CLI. It handles screenshotting (if URL), chafa inv
 # Local image
 lofi-ascii render /path/to/image.png --style=blocks --width=80
 
-# URL (auto-screenshots first)
-lofi-ascii url https://example.com --style=blocks --width=80
-
 # Different styles for different vibes
 lofi-ascii render image.png --style=braille --width=60    # max density, great for UI
 lofi-ascii render image.png --style=lofi    --width=60    # pure 7-bit ASCII
 lofi-ascii render image.png --style=sketch  --width=80    # high-contrast outline
 lofi-ascii render image.png --style=photo   --width=80    # color, terminal-only
 
-# Mobile or desktop viewport for URLs
-lofi-ascii url https://example.com --mobile --style=blocks
-lofi-ascii url https://example.com --desktop --full-page --style=blocks
-
 # Suppress file save (chat-only)
 lofi-ascii render image.png --no-save
 ```
-
-Captures ASCII on stdout (relay to the user, wrapped in a triple-backtick code block so spacing is preserved). The "Saved → path" message is on stderr — surface that path to the user.
 
 **Default style is `blocks`** (Unicode block + box-drawing characters, monochrome, light-theme — renders correctly in markdown, GitHub, and Claude's chat UI). Don't change defaults without reason.
 
@@ -164,13 +192,19 @@ Stitch the components together in your response and adapt as needed. Available c
 
 ## Dependencies
 
-Run `lofi-ascii doctor` first if any operation fails — it reports missing deps. Required: `chafa` (brew), Chrome or Chromium (for URL mode).
+Run `lofi-ascii doctor` first if any operation fails — it reports missing deps. Required:
+- `chafa` (brew) — image-to-ASCII engine
+- Chrome (or Chromium) — for `url` and `screenshot` modes
+- Node + puppeteer-core — for the text-aware `url` mode (installed by `scripts/install.sh`)
+- Python 3 + Pillow — for the compositor and `to-png`
 
 ## Failure modes
 
 - **`chafa not found`** → run `brew install chafa`.
-- **Screenshot fails** → ensure Chrome is installed at `/Applications/Google Chrome.app` or run `npx playwright install chromium`.
-- **Page rendered as solid blocks** → the image is too dark or you're missing `--invert` (already in default styles for light theme; use `--dark` if outputting to a dark terminal).
+- **Screenshot fails / puppeteer error** → ensure Chrome is installed at `/Applications/Google Chrome.app`. If Node deps are missing, run `bash scripts/install.sh` from the repo.
+- **Carousel-rotated pages give different output each run** (apple.com cycles iPhone/MacBook/Vision Pro heroes) → use `--wait=400` to catch the initial frame, or be patient and retry. Stable URLs like `apple.com/iphone/` avoid the issue.
+- **Buttons truncated with `…` at narrow widths** → expected behavior. Increase `--width` so the labels fit.
+- **`EnterprisePricing` (nav items run together)** → the page has a button-styled anchor immediately adjacent to a plain nav link. Mostly cosmetic; the text is still readable.
 - **Output too wide for chat** → use `--width=60` or `--style=lofi`.
 - **Output too sparse** → try `--style=braille` for max density, or increase width.
 
