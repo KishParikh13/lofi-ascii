@@ -1,14 +1,10 @@
 {
-  "name": "node",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "name": "lofi-ascii-extract",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Headless-Chrome DOM extractor for lofi-ascii's text-aware url mode. Used for local dev; the published npm package declares puppeteer-core in the root package.json.",
+  "main": "extract.js",
+  "license": "MIT",
   "dependencies": {
     "puppeteer-core": "^24.43.1"
   }

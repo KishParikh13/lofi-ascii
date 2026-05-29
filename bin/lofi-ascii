@@ -23,6 +23,8 @@ LIB_DIR="$REPO_DIR/lib"
 source "$LIB_DIR/styles.sh"
 # shellcheck source=../lib/render.sh
 source "$LIB_DIR/render.sh"
+# shellcheck source=../lib/native.sh
+source "$LIB_DIR/native.sh"
 # shellcheck source=../lib/screenshot.sh
 source "$LIB_DIR/screenshot.sh"
 # shellcheck source=../lib/output.sh
@@ -47,6 +49,7 @@ lofi-ascii v$VERSION — convert images and webpages into ASCII art
 USAGE
   lofi-ascii render <image-path> [options]
   lofi-ascii url <url> [options]                    # text-aware by default
+  lofi-ascii url-image <url> [options]              # screenshot-only native renderer
   lofi-ascii url-pixel <url> [options]              # legacy chafa-only mode
   lofi-ascii screenshot <url> [options]
   lofi-ascii gallery <input> [options]              # render one input in every style
@@ -71,12 +74,22 @@ OPTIONS
                     with light-on-light elements that otherwise vanish in plain chafa).
   --threshold=N     Cutoff for --high-contrast (0-255, default 235; higher catches more)
   --preprocess=MODE One of: threshold, contrast, edges, none (default none)
+  --charset=CHARS    Native renderer character ramp, darkest → lightest
+  --density-bias=N   Native renderer ramp curve (default: 1.0)
+  --height-scale=N   Native renderer row scale (default: 1.0)
+  --brightness=N     Native renderer brightness, -100..100 (default: 8)
+  --contrast=N       Native renderer contrast, -100..100 (default: 22)
+  --gamma=N          Native renderer gamma (default: 1.0)
+  --pixelate=N       Native renderer source pixel block size (default: 0)
+  --sample-mode=NAME Native renderer sampling: average, detail, ink, edges
+  --detail-weight=N  Native detail blend weight, 0..1 (default: 0.2)
   -h, --help        Show this help
   -v, --version     Show version
 
 EXAMPLES
   lofi-ascii render ~/Desktop/hero.png --style=blocks --width=100
   lofi-ascii url https://www.apple.com --width=140                # text-aware
+  lofi-ascii url-image https://stripe.com --style=detailed        # screenshot-only
   lofi-ascii url-pixel https://stripe.com --style=blocks          # pixel-only
   lofi-ascii screenshot https://example.com --out=example.png --full-page
   lofi-ascii gallery https://stripe.com --width=60      # see all styles
@@ -93,6 +106,9 @@ STYLES
   lofi      Pure 7-bit ASCII, narrow — copy-paste safe anywhere
   braille   Maximum density via braille dots — best for detail
   sketch    High-contrast outline emphasis — best for wireframes
+  standard  Native renderer balanced text ramp
+  detailed  Native renderer dense text ramp
+  minimal   Native renderer sparse text ramp
 
 EOF
 }
@@ -105,8 +121,8 @@ cmd_doctor() {
   if command -v chafa >/dev/null 2>&1; then
     echo "  ✓ chafa: $(chafa --version 2>&1 | head -1)"
   else
-    echo "  ✗ chafa: NOT FOUND. Run: brew install chafa"
-    ok=0
+    echo "  ⚠ chafa: not found (needed for chafa render/gallery/photo modes)"
+    echo "    Native url-image mode works without it."
   fi
 
   if [[ -d "/Applications/Google Chrome.app" ]]; then
@@ -120,13 +136,33 @@ cmd_doctor() {
 
   if command -v node >/dev/null 2>&1; then
     echo "  ✓ node: $(node --version)"
+    if [[ -d "$REPO_DIR/node/node_modules/puppeteer-core" ]]; then
+      echo "  ✓ puppeteer-core installed"
+    else
+      echo "  ⚠ puppeteer-core not installed — text-aware url mode may fall back."
+      echo "    Run: cd $REPO_DIR/node && npm install"
+    fi
   else
     echo "  ⚠ node: not found (only needed for advanced screenshot options)"
   fi
 
+  if command -v python3 >/dev/null 2>&1; then
+    echo "  ✓ python3: $(python3 --version 2>&1)"
+  else
+    echo "  ✗ python3: NOT FOUND. Native rendering requires Python 3."
+    ok=0
+  fi
+
+  if python3 -c "import PIL" 2>/dev/null; then
+    echo "  ✓ Pillow (PIL) available"
+  else
+    echo "  ⚠ Pillow (PIL): not found (needed for text-aware compositor/preprocess)"
+    echo "    Native url-image mode works without it."
+  fi
+
   echo ""
   if [[ $ok -eq 1 ]]; then
-    echo "  All required dependencies present."
+    echo "  Required dependencies for native screenshot rendering are present."
   else
     echo "  Missing required dependencies — see above."
     exit 1
@@ -160,6 +196,15 @@ PP_THRESHOLD=235
 VIEWPORT="1280x800"
 FULL_PAGE=0
 WAIT_MS=1500
+CHARSET=""
+DENSITY_BIAS="1.0"
+HEIGHT_SCALE="1.0"
+BRIGHTNESS="8"
+CONTRAST="22"
+GAMMA="1.0"
+PIXELATE="0"
+SAMPLE_MODE="detail"
+DETAIL_WEIGHT="0.2"
 
 SUBCMD="${1:-}"
 [[ -z "$SUBCMD" ]] && { usage; exit 0; }
@@ -202,16 +247,42 @@ while [[ $# -gt 0 ]]; do
     --high-contrast|--crisp) PREPROCESS="threshold" ;;
     --preprocess=*) PREPROCESS="${1#*=}" ;;
     --threshold=*) PP_THRESHOLD="${1#*=}" ;;
+    --charset=*) CHARSET="${1#*=}" ;;
+    --density-bias=*) DENSITY_BIAS="${1#*=}" ;;
+    --height-scale=*) HEIGHT_SCALE="${1#*=}" ;;
+    --brightness=*) BRIGHTNESS="${1#*=}" ;;
+    --contrast=*) CONTRAST="${1#*=}" ;;
+    --gamma=*) GAMMA="${1#*=}" ;;
+    --pixelate=*) PIXELATE="${1#*=}" ;;
+    --sample-mode=*) SAMPLE_MODE="${1#*=}" ;;
+    --detail-weight=*) DETAIL_WEIGHT="${1#*=}" ;;
     --crop=*) IFS=':' read -r CROP_START CROP_END <<< "${1#*=}" ;;
     --min-font-size=*) MIN_FS="${1#*=}" ;;
     --stack) COMPARE_STACK=1 ;;
     --side) COMPARE_STACK=0 ;;
     --font-size=*) FONT_SIZE="${1#*=}" ;;
     -h|--help) usage; exit 0 ;;
-    *) echo "Unknown option: $1" >&2; exit 1 ;;
+    *)
+      echo "lofi-ascii: unknown option '$1'" >&2
+      echo "Run 'lofi-ascii --help' to see all options." >&2
+      exit 1
+      ;;
   esac
   shift
 done
+
+# Validate width: must be a positive integer; clamp to a sane range.
+if ! [[ "$WIDTH" =~ ^[0-9]+$ ]]; then
+  echo "lofi-ascii: --width must be a whole number (got '$WIDTH')." >&2
+  exit 1
+fi
+if (( WIDTH < 10 )); then
+  echo "lofi-ascii: --width=$WIDTH is too small; using 10 (minimum)." >&2
+  WIDTH=10
+elif (( WIDTH > 240 )); then
+  echo "lofi-ascii: --width=$WIDTH exceeds the 240 maximum; using 240." >&2
+  WIDTH=240
+fi
 
 case "$SUBCMD" in
   render)
@@ -238,22 +309,39 @@ case "$SUBCMD" in
       echo "Falling back to pixel-only mode…" >&2
       tmp_png=$(mktemp -t lofi-ascii.XXXXXX).png
       take_screenshot "$INPUT" "$tmp_png" "$VIEWPORT" "$FULL_PAGE" "$WAIT_MS"
-      pp_input=$(preprocess_image "$tmp_png" "$PREPROCESS" "$PP_THRESHOLD")
-      output=$(render_image "$pp_input" "$STYLE" "$WIDTH" "" "$THEME")
-      [[ "$pp_input" != "$tmp_png" ]] && rm -f "$pp_input"
+      if command -v chafa >/dev/null 2>&1; then
+        pp_input=$(preprocess_image "$tmp_png" "$PREPROCESS" "$PP_THRESHOLD")
+        output=$(render_image "$pp_input" "$STYLE" "$WIDTH" "" "$THEME")
+        [[ "$pp_input" != "$tmp_png" ]] && rm -f "$pp_input"
+      else
+        output=$(render_image_native "$tmp_png" "$STYLE" "$WIDTH" "$THEME" "$CHARSET" "$DENSITY_BIAS" "$HEIGHT_SCALE" "$BRIGHTNESS" "$CONTRAST" "$GAMMA" "$PIXELATE" "$SAMPLE_MODE" "$DETAIL_WEIGHT")
+      fi
       handle_output "$output" "$INPUT" "$STYLE" "$OUT" "$NO_SAVE"
       rm -f "$tmp_png"
     fi
     rm -f "$tmp_out"
+    ;;
+  url-image)
+    [[ -z "$INPUT" ]] && { echo "url-image: missing <url>" >&2; usage; exit 1; }
+    tmp_png=$(mktemp -t lofi-ascii.XXXXXX).png
+    take_screenshot "$INPUT" "$tmp_png" "$VIEWPORT" "$FULL_PAGE" "$WAIT_MS"
+    output=$(render_image_native "$tmp_png" "$STYLE" "$WIDTH" "$THEME" "$CHARSET" "$DENSITY_BIAS" "$HEIGHT_SCALE" "$BRIGHTNESS" "$CONTRAST" "$GAMMA" "$PIXELATE" "$SAMPLE_MODE" "$DETAIL_WEIGHT")
+    handle_output "$output" "$INPUT" "native-$STYLE" "$OUT" "$NO_SAVE"
+    rm -f "$tmp_png"
     ;;
   url-pixel)
     # Legacy mode: full screenshot piped to chafa, no DOM extraction.
     [[ -z "$INPUT" ]] && { echo "url-pixel: missing <url>" >&2; usage; exit 1; }
     tmp_png=$(mktemp -t lofi-ascii.XXXXXX).png
     take_screenshot "$INPUT" "$tmp_png" "$VIEWPORT" "$FULL_PAGE" "$WAIT_MS"
-    pp_input=$(preprocess_image "$tmp_png" "$PREPROCESS" "$PP_THRESHOLD")
-    output=$(render_image "$pp_input" "$STYLE" "$WIDTH" "" "$THEME")
-    [[ "$pp_input" != "$tmp_png" ]] && rm -f "$pp_input"
+    if command -v chafa >/dev/null 2>&1; then
+      pp_input=$(preprocess_image "$tmp_png" "$PREPROCESS" "$PP_THRESHOLD")
+      output=$(render_image "$pp_input" "$STYLE" "$WIDTH" "" "$THEME")
+      [[ "$pp_input" != "$tmp_png" ]] && rm -f "$pp_input"
+    else
+      echo "url-pixel: chafa not found; using native screenshot renderer." >&2
+      output=$(render_image_native "$tmp_png" "$STYLE" "$WIDTH" "$THEME" "$CHARSET" "$DENSITY_BIAS" "$HEIGHT_SCALE" "$BRIGHTNESS" "$CONTRAST" "$GAMMA" "$PIXELATE" "$SAMPLE_MODE" "$DETAIL_WEIGHT")
+    fi
     handle_output "$output" "$INPUT" "$STYLE" "$OUT" "$NO_SAVE"
     rm -f "$tmp_png"
     ;;

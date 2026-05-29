@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lofi-ascii — turn any webpage into readable ASCII</title>
+<meta name="description" content="A tiny CLI and Claude skill that turns images and webpages into readable ASCII art and lofi wireframes. The Asciinator for design engineers.">
+<meta property="og:title" content="lofi-ascii — the Asciinator for design engineers">
+<meta property="og:description" content="One command turns a whole webpage into ASCII you can actually read — headlines stay text, buttons stay buttons, only the photos become art.">
+<meta property="og:type" content="website">
+<style>
+  :root {
+    --ink: #1a1714;
+    --paper: #f4efe6;
+    --paper-2: #ece5d8;
+    --line: #d8cfbe;
+    --muted: #6b6357;
+    --accent: #c2410c;       /* burnt orange */
+    --accent-soft: #e8d9c4;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Menlo", "Cascadia Code", monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--mono);
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px);
+    background-size: 100% 2.4rem;
+    background-position: 0 -1px;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---- top bar ---- */
+  header {
+    border-bottom: 1px solid var(--line);
+    background: rgba(244,239,230,0.9);
+    backdrop-filter: blur(6px);
+    position: sticky; top: 0; z-index: 10;
+  }
+  .bar { display: flex; align-items: center; justify-content: space-between; height: 56px; }
+  .brand { font-weight: 700; letter-spacing: -0.02em; }
+  .brand b { color: var(--accent); }
+  nav.top a { color: var(--ink); margin-left: 22px; font-size: 13px; }
+  nav.top a:hover { color: var(--accent); }
+
+  /* ---- hero ---- */
+  .hero { padding: 72px 0 48px; }
+  .eyebrow {
+    display: inline-block; font-size: 12px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 999px;
+    padding: 4px 12px; margin-bottom: 26px; background: var(--paper);
+  }
+  h1 {
+    font-size: clamp(34px, 6vw, 60px); line-height: 1.04;
+    letter-spacing: -0.03em; font-weight: 800; max-width: 16ch;
+  }
+  h1 .hl { color: var(--accent); }
+  .sub {
+    margin-top: 22px; font-size: 17px; color: var(--muted);
+    max-width: 60ch;
+  }
+  .cta { margin-top: 34px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+  .cmd {
+    background: var(--ink); color: var(--paper);
+    padding: 13px 18px; border-radius: 8px; font-size: 14px;
+    display: inline-flex; align-items: center; gap: 12px;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.25);
+  }
+  .cmd .dollar { color: #8a8378; user-select: none; }
+  .cmd button {
+    font-family: var(--mono); font-size: 11px; cursor: pointer;
+    background: #2e2924; color: var(--paper); border: 1px solid #4a4339;
+    border-radius: 5px; padding: 3px 9px;
+  }
+  .cmd button:hover { background: var(--accent); border-color: var(--accent); }
+  .ghost {
+    border: 1px solid var(--ink); color: var(--ink);
+    padding: 12px 18px; border-radius: 8px; font-size: 14px; background: transparent;
+  }
+  .ghost:hover { background: var(--ink); color: var(--paper); text-decoration: none; }
+
+  /* ---- ascii showpiece ---- */
+  .screen {
+    margin-top: 52px; border: 1px solid var(--line); border-radius: 12px;
+    background: var(--paper-2); overflow: hidden;
+    box-shadow: 0 24px 60px -32px rgba(26,23,20,0.5);
+  }
+  .screen .titlebar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--paper);
+  }
+  .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--line); }
+  .dot.r { background: #d96a5a; } .dot.y { background: #d9b35a; } .dot.g { background: #7fae6b; }
+  .titlebar .path { margin-left: 10px; font-size: 12px; color: var(--muted); }
+  pre.ascii {
+    font-size: 11px; line-height: 1.12; padding: 22px 18px; overflow-x: auto;
+    color: var(--ink); white-space: pre; tab-size: 2;
+  }
+  pre.ascii .cmdline { color: var(--accent); }
+  pre.ascii .dim { color: var(--muted); }
+
+  /* ---- sections ---- */
+  section { padding: 56px 0; border-top: 1px solid var(--line); }
+  h2 { font-size: 26px; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .lead { color: var(--muted); max-width: 64ch; margin-bottom: 30px; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .card {
+    border: 1px solid var(--line); border-radius: 10px; padding: 20px;
+    background: var(--paper-2);
+  }
+  .card h3 { font-size: 15px; margin-bottom: 8px; }
+  .card h3 .k { color: var(--accent); }
+  .card p { font-size: 13px; color: var(--muted); }
+
+  /* before/after */
+  .ba { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: stretch; }
+  .ba figure {
+    border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--paper-2);
+  }
+  .ba figcaption {
+    font-size: 12px; color: var(--muted); padding: 9px 14px; border-bottom: 1px solid var(--line);
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .ba pre { font-size: 8.5px; line-height: 1.1; padding: 14px; overflow: hidden; white-space: pre; }
+  .ba .mock { padding: 0; }
+  .ba .mock .m-inner { padding: 18px; }
+  .m-nav { display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:12px; }
+  .m-hero { text-align:center; padding: 26px 8px; }
+  .m-hero .ph-img { height: 70px; background: linear-gradient(135deg,#d8cfbe,#cdbfa6); border-radius:8px; margin: 14px auto 18px; }
+  .m-hero h4 { font-size: 16px; letter-spacing:-0.02em; }
+  .m-hero p { font-size: 11px; color: var(--muted); margin: 8px 0 16px; }
+  .m-btns { display:flex; gap:8px; justify-content:center; }
+  .m-btns span { font-size:11px; padding:6px 12px; border-radius:6px; }
+  .m-btns .p { background: var(--accent); color: var(--paper); }
+  .m-btns .s { border:1px solid var(--line); color: var(--ink); }
+
+  /* skill block */
+  .split { display:grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .split .panel { border:1px solid var(--line); border-radius:10px; padding:22px; background:var(--paper-2); }
+  .split .panel h3 { font-size:16px; margin-bottom:10px; }
+  .chat { font-size: 13px; }
+  .chat .you { color: var(--ink); }
+  .chat .ai { color: var(--muted); }
+  .chat .q { background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin:8px 0; }
+
+  ul.modes { list-style:none; font-size:13px; }
+  ul.modes li { padding:7px 0; border-bottom:1px dashed var(--line); }
+  ul.modes li:last-child { border-bottom:0; }
+  ul.modes .k { color: var(--accent); }
+
+  footer { border-top:1px solid var(--line); padding: 34px 0 60px; color: var(--muted); font-size: 13px; }
+  footer .row { display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+
+  @media (max-width: 760px) {
+    .grid, .ba, .split { grid-template-columns: 1fr; }
+    nav.top a:not(:last-child) { display:none; }
+    pre.ascii { font-size: 9px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <div class="brand"><b>lofi</b>-ascii</div>
+    <nav class="top">
+      <a href="#how">How it works</a>
+      <a href="#showcase">Before / after</a>
+      <a href="#skill">Claude skill</a>
+      <a href="https://github.com/KishParikh13/lofi-ascii">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- HERO -->
+  <div class="hero">
+    <span class="eyebrow">The Asciinator for design engineers</span>
+    <h1>Turn any webpage into ASCII <span class="hl">you can actually read.</span></h1>
+    <p class="sub">
+      One command. The whole page becomes text — headlines stay headlines,
+      buttons stay buttons, nav stays legible. Only the photographs become art.
+      Paste it into a PR, a Linear ticket, a Claude chat, or a code comment.
+      No screenshots, no file formats. Just text.
+    </p>
+    <div class="cta">
+      <span class="cmd">
+        <span class="dollar">$</span>
+        <span id="cmd-text">npx lofi-ascii url stripe.com --width=120</span>
+        <button onclick="navigator.clipboard.writeText('npx lofi-ascii url stripe.com --width=120');this.textContent='copied'">copy</button>
+      </span>
+      <a class="ghost" href="https://github.com/KishParikh13/lofi-ascii">Read the docs</a>
+    </div>
+
+    <!-- ASCII showpiece -->
+    <div class="screen">
+      <div class="titlebar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="path">~ lofi-ascii url stripe.com --width=120</span>
+      </div>
+<pre class="ascii"><span class="cmdline">$ lofi-ascii url https://stripe.com --width=120</span>
+
+┌──────────────────────────────────────────────────────────────────────────────────────────┐
+│  [ Logo ]   Products   Solutions   Developers   Resources   Pricing   [ Sign in ] [ Contact ]│
+└──────────────────────────────────────────────────────────────────────────────────────────┘
+
+   Financial infrastructure to grow                  ░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░░░░
+   your revenue.                                  ░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░░
+                                                ░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░
+   Accept payments, offer financial            ▒▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+   services, and build revenue models —        ▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+   from first transaction to billionth.        ░▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░
+                                                ░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░
+   ┏━━━━━━━━━━━━━━┓  ┌────────────────────┐      ░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░░
+   ┃ Get started  ┃  │ Contact sales      │         ░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░░░
+   ┗━━━━━━━━━━━━━━┛  └────────────────────┘            ░░░░▒▒▒▒▒▒▒▒▒▒▒▒░░░░
+
+<span class="dim">   Saved → ./ascii-stripe-com-blocks-20260529.txt</span></pre>
+    </div>
+  </div>
+</main>
+
+<!-- HOW -->
+<section id="how">
+  <div class="wrap">
+    <h2>Not a brightness ramp. A wireframe.</h2>
+    <p class="lead">
+      Naïve image→ASCII tools turn a dark hero into a solid <code>█</code> blob.
+      lofi-ascii walks the live DOM, keeps real text as text, draws buttons as
+      boxes, and renders only the image regions — per-tile, edge-aware — so a
+      black phone, a white phone and a pink phone on one page each keep their shape.
+    </p>
+    <div class="grid">
+      <div class="card">
+        <h3><span class="k">url</span> — text-aware</h3>
+        <p>Headless Chrome + DOM walk. Real copy stays readable; only photos become art. The default, and the showcase.</p>
+      </div>
+      <div class="card">
+        <h3><span class="k">url-image</span> — native</h3>
+        <p>Whole screenshot → ASCII with a dependency-free renderer. The clean, classic Asciinator look. No chafa needed.</p>
+      </div>
+      <div class="card">
+        <h3><span class="k">render</span> — local files</h3>
+        <p>Any image → ASCII. blocks, braille, pure 7-bit, edge sketch, or 256-color photo. Deterministic and fast.</p>
+      </div>
+      <div class="card">
+        <h3><span class="k">wireframe</span> — via Claude</h3>
+        <p>Claude looks at the UI and emits a labeled, semantic wireframe — it knows "this is a button" and says so.</p>
+      </div>
+      <div class="card">
+        <h3><span class="k">compare</span> — A / B</h3>
+        <p>Two URLs or images, side-by-side or stacked. Perfect for before/after and competitive teardowns.</p>
+      </div>
+      <div class="card">
+        <h3><span class="k">to-png</span> — back out</h3>
+        <p>Render ASCII back to a crisp PNG for Figma, design docs, and READMEs. Round-trips both ways.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SHOWCASE -->
+<section id="showcase">
+  <div class="wrap">
+    <h2>Before / after</h2>
+    <p class="lead">A live page on the left. The lofi-ascii render on the right — readable, paste-anywhere, monospace-safe.</p>
+    <div class="ba">
+      <figure class="mock">
+        <figcaption>The page</figcaption>
+        <div class="m-inner">
+          <div class="m-nav"><span>◆ Acme</span><span>Product · Pricing · Docs · Sign in</span></div>
+          <div class="m-hero">
+            <h4>Build faster, ship smarter</h4>
+            <p>The platform design engineers actually like.</p>
+            <div class="ph-img"></div>
+            <div class="m-btns"><span class="p">Get started</span><span class="s">Learn more</span></div>
+          </div>
+        </div>
+      </figure>
+      <figure>
+        <figcaption>lofi-ascii</figcaption>
+<pre>┌──────────────────────────────────────────────┐
+│  [ ◆ Acme ]   Product  Pricing  Docs  [Sign in]│
+└──────────────────────────────────────────────┘
+
+            Build faster, ship smarter
+
+         The platform design engineers
+                actually like.
+
+         ░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░
+         ░▒▒▒▒▒▒▒▓▓▓▓▓▓▓▒▒▒▒▒▒▒▒▒▒░
+         ░▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▒▒▒▒▒▒▒▒░
+         ░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░
+
+      ┏━━━━━━━━━━━━━┓  ┌────────────┐
+      ┃ Get started ┃  │ Learn more │
+      ┗━━━━━━━━━━━━━┛  └────────────┘</pre>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- SKILL -->
+<section id="skill">
+  <div class="wrap">
+    <h2>It's also a Claude skill</h2>
+    <p class="lead">
+      Install once and Claude Code picks the right mode automatically. Just ask in plain English —
+      no flags to memorize.
+    </p>
+    <div class="split">
+      <div class="panel">
+        <h3>Talk to Claude</h3>
+        <div class="chat">
+          <div class="q"><span class="you">"Make an ASCII wireframe of stripe.com"</span></div>
+          <div class="q"><span class="you">"Convert ~/Desktop/figma-export.png to lofi ASCII"</span></div>
+          <div class="q"><span class="you">"Compare these two URLs side by side as ASCII"</span></div>
+          <p class="ai">→ Claude routes to <b>url</b>, <b>render</b>, or a hand-drawn <b>wireframe</b> and pastes the result inline.</p>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Or run the CLI directly</h3>
+        <ul class="modes">
+          <li><span class="k">render</span> &nbsp; image file → ASCII</li>
+          <li><span class="k">url</span> &nbsp; webpage → text-aware ASCII</li>
+          <li><span class="k">url-image</span> &nbsp; screenshot → native ASCII</li>
+          <li><span class="k">gallery</span> &nbsp; every style, one input</li>
+          <li><span class="k">compare</span> &nbsp; side-by-side A/B</li>
+          <li><span class="k">components</span> &nbsp; pre-made ASCII UI blocks</li>
+          <li><span class="k">to-png</span> &nbsp; ASCII → PNG for Figma/docs</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INSTALL -->
+<section id="install">
+  <div class="wrap">
+    <h2>Install</h2>
+    <p class="lead">Node 18+. Bring <code>chafa</code> and Chrome for the full feature set — <code>lofi-ascii doctor</code> checks for you.</p>
+    <div class="screen">
+      <div class="titlebar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="path">install</span></div>
+<pre class="ascii"><span class="dim"># try it instantly, nothing to install</span>
+<span class="cmdline">$</span> npx lofi-ascii url stripe.com --width=120
+
+<span class="dim"># or install globally</span>
+<span class="cmdline">$</span> npm install -g lofi-ascii
+<span class="cmdline">$</span> lofi-ascii doctor</pre>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap row">
+    <span>lofi-ascii · MIT licensed · a CLI + a Claude skill</span>
+    <span><a href="https://github.com/KishParikh13/lofi-ascii">github.com/KishParikh13/lofi-ascii</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

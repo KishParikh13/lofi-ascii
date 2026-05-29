@@ -6,8 +6,16 @@
 /wireframe-*.txt
 /wireframe-*.png
 
-# Node deps (installed via scripts/install.sh)
+# Node deps (installed via scripts/install.sh or `npm install`)
 node/node_modules/
+node_modules/
+
+# npm pack output
+*.tgz
+
+# Local dev scratch — design experiments + lazyweb cache (never shipped)
+experiments/
+.lazyweb/
 
 # Editor / OS
 .DS_Store

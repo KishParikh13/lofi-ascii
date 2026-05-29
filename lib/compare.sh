@@ -46,9 +46,14 @@ compare_inputs() {
 
 _short_label() {
   local s="$1"
-  s="${s#http://}"
-  s="${s#https://}"
-  s="${s%/}"
+  if [[ "$s" == http://* || "$s" == https://* ]]; then
+    s="${s#http://}"
+    s="${s#https://}"
+    s="${s%/}"
+  else
+    # Local file: show just the basename, not the full path.
+    s="$(basename "$s")"
+  fi
   echo "${s:0:50}"
 }
 

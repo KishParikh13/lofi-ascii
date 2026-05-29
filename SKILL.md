@@ -5,9 +5,10 @@ description: Use when the user wants to convert an image, screenshot, Figma expo
 
 # lofi-ascii
 
-A three-mode skill that turns images, screenshots, and webpages into ASCII art:
+A four-mode skill that turns images, screenshots, and webpages into ASCII art:
 
 - **`url` mode (text-aware, default for URLs)** — headless Chrome opens the page, the extractor walks the DOM and reports text nodes, button-like elements, nav links, and image rects with their bounding boxes. The compositor lays everything out: real text stays as readable characters, buttons render as ASCII boxes (`┏━━┓ ┃ Learn more ┃ ┗━━┛` for filled, `┌──┐ │ Buy │ └──┘` for outline), nav as a top text row, and image regions as a *wireframe-style* ASCII render (per-tile histogram-stretched foreground mask + edges — so the silhouette and structure show, not just a brightness ramp). Best for any URL the user gives you.
+- **`url-image` mode** — headless Chrome captures the webpage as a PNG, then the native dependency-free renderer converts the whole screenshot to ASCII. Text becomes ASCII too. Best when the user wants the clean image-to-ASCII look or when `chafa`, `Pillow`, or `puppeteer-core` are unavailable.
 - **`render` mode** — fast, deterministic pixel→ASCII via `chafa`. Best for photos, logos, icons, and local image files the user provides.
 - **`wireframe` mode** — *you* (Claude) look at the image and emit a structured, semantically labeled ASCII wireframe. Best when the user wants a *clean* design wireframe (labels, sections, no rendering noise) rather than a faithful page render.
 
@@ -20,6 +21,7 @@ Pick the mode based on what the user is asking for:
 | User said... | Use this mode |
 |---|---|
 | "ascii this URL", "convert apple.com to ASCII", "ascii of stripe.com" | **url** (text-aware, default) |
+| "image to ascii this webpage", "screenshot to ascii", "text can become ascii" | **url-image** |
 | "wireframe", "mockup", "lofi wireframe", "clean wireframe of this UI" | **wireframe** (Claude-generated) |
 | "ascii-ify", "ASCII art", "convert image to ASCII", "make ASCII of this photo/logo" | **render** |
 | Provided a URL with no further direction | **url** (the text-aware compositor is the showcase — keeps text readable) |
@@ -35,6 +37,7 @@ Just shell out to the CLI. `url` is now text-aware by default — it uses Node +
 ```bash
 # Recommended canonical example — apple.com hero
 lofi-ascii url https://www.apple.com --width=140
+lofi-ascii url-image https://www.apple.com --width=140 --style=standard
 
 # Other sites
 lofi-ascii url https://stripe.com --width=140
@@ -61,7 +64,17 @@ lofi-ascii url https://example.com --no-save
 
 Captures ASCII on stdout (relay to the user, wrapped in a triple-backtick code block so spacing is preserved). The "Saved → path" message is on stderr — surface that path to the user.
 
-**Legacy fallback:** `lofi-ascii url-pixel <url>` runs the whole page through chafa (no DOM extraction). Use only if the user explicitly asks for a pixel-only render of a webpage.
+**Screenshot-only fallback:** `lofi-ascii url-image <url>` renders the whole screenshot with the native renderer. Use it when the user prefers image-to-ASCII output, accepts text becoming ASCII, or local text-aware dependencies are missing.
+
+Useful `url-image` variants:
+
+```bash
+lofi-ascii url-image https://example.com --width=120 --height-scale=1.35 --sample-mode=ink --style=standard
+lofi-ascii url-image https://example.com --width=120 --height-scale=1.35 --sample-mode=ink --style=blocks
+lofi-ascii url-image https://example.com --width=140 --height-scale=1.2 --sample-mode=detail --detail-weight=0.35 --style=standard
+```
+
+**Legacy fallback:** `lofi-ascii url-pixel <url>` runs the whole page through chafa when available, otherwise falls back to the native screenshot renderer.
 
 ## Mode: render (local images, photos, logos)
 
@@ -193,14 +206,15 @@ Stitch the components together in your response and adapt as needed. Available c
 ## Dependencies
 
 Run `lofi-ascii doctor` first if any operation fails — it reports missing deps. Required:
-- `chafa` (brew) — image-to-ASCII engine
+- `chafa` (brew) — image-to-ASCII engine for `render`/gallery/photo modes; not required for `url-image`
 - Chrome (or Chromium) — for `url` and `screenshot` modes
 - Node + puppeteer-core — for the text-aware `url` mode (installed by `scripts/install.sh`)
-- Python 3 + Pillow — for the compositor and `to-png`
+- Python 3 — required for native rendering
+- Python 3 + Pillow — for the text-aware compositor/preprocess and `to-png`
 
 ## Failure modes
 
-- **`chafa not found`** → run `brew install chafa`.
+- **`chafa not found`** → use `url-image` for webpages or run `brew install chafa` for local image render modes.
 - **Screenshot fails / puppeteer error** → ensure Chrome is installed at `/Applications/Google Chrome.app`. If Node deps are missing, run `bash scripts/install.sh` from the repo.
 - **Carousel-rotated pages give different output each run** (apple.com cycles iPhone/MacBook/Vision Pro heroes) → use `--wait=400` to catch the initial frame, or be patient and retry. Stable URLs like `apple.com/iphone/` avoid the issue.
 - **Buttons truncated with `…` at narrow widths** → expected behavior. Increase `--width` so the labels fit.

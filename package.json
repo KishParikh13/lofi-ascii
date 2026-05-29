@@ -1,0 +1,61 @@
+{
+  "name": "lofi-ascii",
+  "version": "0.1.0",
+  "description": "Turn images and webpages into readable ASCII art and lofi wireframes — for design engineers. A CLI and a Claude skill.",
+  "keywords": [
+    "ascii",
+    "ascii-art",
+    "wireframe",
+    "lofi",
+    "cli",
+    "design",
+    "design-engineering",
+    "screenshot",
+    "image-to-ascii",
+    "html-to-ascii",
+    "chafa",
+    "claude",
+    "claude-skill",
+    "terminal"
+  ],
+  "homepage": "https://github.com/KishParikh13/lofi-ascii#readme",
+  "bugs": {
+    "url": "https://github.com/KishParikh13/lofi-ascii/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KishParikh13/lofi-ascii.git"
+  },
+  "license": "MIT",
+  "author": "Kish Parikh (https://github.com/KishParikh13)",
+  "type": "commonjs",
+  "bin": {
+    "lofi-ascii": "bin/lofi-ascii"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "node/extract.js",
+    "components/",
+    "examples/",
+    "assets/",
+    "scripts/install.sh",
+    "SKILL.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "bash scripts/test.sh",
+    "doctor": "bin/lofi-ascii doctor"
+  },
+  "dependencies": {
+    "puppeteer-core": "^24.43.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ]
+}

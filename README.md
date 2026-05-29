@@ -27,6 +27,7 @@ lofi-ascii url https://www.apple.com --width=140
 ## What it does
 
 - **`url`** — **text-aware webpage → ASCII** (default). Real text from the DOM stays as readable text. Images (`<picture>`, `<img>`, `<video>`, `<svg>`) get pixel-rendered as ASCII via [`chafa`](https://hpjansson.org/chafa/) and composited back at the right positions. Headings, buttons, nav copy stay legible — only the photographs become art.
+- **`url-image`** — webpage screenshot → ASCII with the native renderer. This is the clean Asciinator-style path: the whole page becomes character art, including text, with no `chafa` or Pillow dependency.
 - **`url-pixel`** — legacy mode. Whole page through chafa. Useful when you specifically want a pixel-style render of the entire page (no DOM parsing).
 - **`render`** — image file → ASCII (Unicode blocks, braille, pure ASCII, color photo, edge sketch). Deterministic, fast.
 - **`wireframe`** (via Claude skill) — *Claude* looks at the image and emits a structured, labeled ASCII wireframe with box-drawing characters. Best for UI work because it understands "this is a button" and labels it accordingly.
@@ -37,21 +38,41 @@ lofi-ascii url https://www.apple.com --width=140
 
 ## Install
 
+**Quickest — run it with `npx` (no install):**
+
+```bash
+npx lofi-ascii url https://stripe.com --width=120
+```
+
+**Install globally:**
+
+```bash
+npm install -g lofi-ascii
+lofi-ascii doctor
+```
+
+`npm` brings `puppeteer-core` (for the text-aware `url` mode) automatically. For the
+local image modes you still want **chafa** (`brew install chafa`) and **Chrome** for
+screenshots — `lofi-ascii doctor` tells you exactly what's missing.
+
+**Install from source (also wires up the Claude skill):**
+
 ```bash
 git clone https://github.com/KishParikh13/lofi-ascii ~/Code/lofi-ascii
 bash ~/Code/lofi-ascii/scripts/install.sh
 ```
 
-The installer:
-- Installs `chafa` via Homebrew if missing
+The source installer:
+- Installs `chafa` via Homebrew if missing (local image/gallery/photo modes)
 - Verifies Chrome is installed (or Chromium)
+- Installs `puppeteer-core` for the text-aware `url` mode
 - Symlinks `lofi-ascii` into `~/.local/bin`
 - Symlinks the skill into `~/.claude/skills/lofi-ascii` so Claude Code picks it up
 
 Then:
 ```bash
 lofi-ascii doctor                                # check deps
-lofi-ascii url https://stripe.com --width=80     # try it
+lofi-ascii url https://stripe.com --width=120    # try it
 ```
 
 ## Usage
@@ -64,6 +85,7 @@ lofi-ascii render hero.png --style=lofi    --width=60    # pure 7-bit ASCII
 
 # Convert a webpage (auto-screenshots first)
 lofi-ascii url https://stripe.com --style=blocks
+lofi-ascii url-image https://stripe.com --style=detailed --width=140
 lofi-ascii url https://stripe.com --mobile               # 390px viewport
 lofi-ascii url https://stripe.com --desktop --full-page  # 1440px, full scroll
 
@@ -105,6 +127,15 @@ lofi-ascii components signup-form                        # print one
 | `--high-contrast` | off | Threshold-binarize the source first (legacy `url-pixel` flag). The default text-aware `url` mode no longer needs this — its tile-based renderer handles mixed-contrast subjects (dark + white + pink iPhones on one canvas) automatically. |
 | `--threshold=N` | `235` | Cutoff for `--high-contrast` (0-255). Higher catches more subtle elements. |
 | `--preprocess=MODE` | `none` | `threshold`, `contrast`, or `edges`. `--high-contrast` is a shorthand for `--preprocess=threshold`. |
+| `--charset=CHARS` | style ramp | Native renderer custom character ramp, ordered darkest to lightest. |
+| `--density-bias=N` | `1.0` | Native renderer tone curve. Higher values use lighter characters for more of the image. |
+| `--height-scale=N` | `1.0` | Native renderer row multiplier. Useful if a font renders too squat or too tall. |
+| `--brightness=N` | `8` | Native renderer brightness adjustment, roughly `-100..100`. |
+| `--contrast=N` | `22` | Native renderer contrast adjustment, roughly `-100..100`. |
+| `--gamma=N` | `1.0` | Native renderer gamma adjustment. |
+| `--pixelate=N` | `0` | Native renderer source pixel block size for chunkier output. |
+| `--sample-mode=NAME` | `detail` | Native renderer sampling strategy: `average`, `detail`, `ink`, or `edges`. |
+| `--detail-weight=N` | `0.2` | Detail-mode blend weight. Lower values preserve small text/borders more aggressively. |
 | `--mobile` / `--desktop` | desktop | Browser viewport for URL mode |
 | `--full-page` | off | Capture full scrollable page |
 | `--wait=MS` | `1500` | Wait before screenshot |
@@ -121,7 +152,7 @@ Once installed, just talk to Claude:
 > "Convert ~/Desktop/figma-export.png to lofi ASCII"
 > "Compare these two URLs side by side as ASCII"
 
-Claude picks the right mode automatically: **wireframe mode** (Claude visually inspects the image and emits a labeled, structured wireframe with semantic regions) for UI work, **render mode** (deterministic chafa) for photos and assets.
+Claude picks the right mode automatically: **wireframe mode** (Claude visually inspects the image and emits a labeled, structured wireframe with semantic regions) for semantic UI work, **url-image mode** for fast screenshot-to-ASCII webpage captures, and **render mode** (deterministic chafa) for photos and assets.
 
 The skill ships with a component library (`navbar`, `hero`, `pricing-table`, `signup-form`, `data-table`, `modal`, `mobile-nav`, etc.) Claude can stitch together when you describe a UI from scratch instead of providing a source image.
 
@@ -248,7 +279,7 @@ lofi-ascii to-png wireframe.txt --out=wireframe.png --font-size=14
 
 ## Why "lofi"?
 
-Because ASCII is the design tool you reach for when you don't want to think about pixels yet. Wireframes from chafa output capture *layout and density* without committing to anything. They paste cleanly into:
+Because ASCII is the design tool you reach for when you don't want to think about pixels yet. Native screenshot renders and chafa output capture *layout and density* without committing to anything. They paste cleanly into:
 
 - Claude conversations (the whole reason this exists)
 - GitHub issues, PR descriptions, README files
@@ -260,7 +291,8 @@ No file format. No screenshot tool. Just text.
 
 ## Dependencies
 
-- **`chafa`** — image-to-ASCII engine. `brew install chafa`.
+- **Native renderer** — dependency-free PNG screenshot → ASCII path used by `url-image`.
+- **`chafa`** — image-to-ASCII engine for `render`, `gallery`, and legacy pixel modes. `brew install chafa`.
 - **Google Chrome** (or Chromium) — used for `url` and `screenshot` modes. The installer detects it.
 - **Python 3** + **Pillow** — used by the text-aware compositor and `to-png` size calculations. Ships with macOS; Pillow installed by `scripts/install.sh`.
 - **Node + puppeteer-core** — used by the text-aware mode to drive headless Chrome with DOM extraction. Installed by `scripts/install.sh`. Falls back gracefully (uses pixel-only rendering) if Node is missing.
@@ -273,6 +305,8 @@ No file format. No screenshot tool. Just text.
 ├── lib/                    # sourced modules
 │   ├── styles.sh           # chafa flag presets per style
 │   ├── render.sh           # image → ASCII (chafa)
+│   ├── native.sh           # PNG screenshot → ASCII wrapper
+│   ├── native_render.py    # dependency-free PNG decoder + ASCII renderer
 │   ├── screenshot.sh       # URL → PNG (headless Chrome)
 │   ├── text_aware.sh       # url mode wrapper (extract + composite)
 │   ├── composite.py        # the compositor — DOM + screenshot → ASCII grid
@@ -292,7 +326,7 @@ No file format. No screenshot tool. Just text.
 
 ## Credits
 
-Built with [chafa](https://hpjansson.org/chafa/) (Hans Petter Jansson) — the gold-standard image-to-text engine. Inspired by [neethanwu/ascii-art](https://github.com/neethanwu/ascii-art) and [trabian/fluxwing-skills](https://github.com/trabian/fluxwing-skills), the two closest prior Claude skills in this space.
+Built with [chafa](https://hpjansson.org/chafa/) (Hans Petter Jansson) for local image rendering, plus a dependency-free native screenshot renderer for webpage captures. Inspired by [neethanwu/ascii-art](https://github.com/neethanwu/ascii-art), [trabian/fluxwing-skills](https://github.com/trabian/fluxwing-skills), and modern browser ASCII studios such as ASCIInator and Glyphcast.
 
 ## License
 

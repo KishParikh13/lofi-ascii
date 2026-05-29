@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root{
+    --ink:#1a1714; --paper:#f4efe6; --paper2:#ece5d8; --line:#d8cfbe;
+    --muted:#6b6357; --accent:#c2410c;
+    --mono: ui-monospace,"SF Mono","JetBrains Mono","Menlo",monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1280px;height:640px;overflow:hidden}
+  body{
+    font-family:var(--mono); background:var(--paper); color:var(--ink);
+    background-image:linear-gradient(var(--line) 1px,transparent 1px);
+    background-size:100% 40px; display:flex;
+  }
+  .left{ width:560px; padding:64px 48px; display:flex; flex-direction:column; justify-content:center; }
+  .eyebrow{
+    align-self:flex-start; font-size:14px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--accent); border:1px solid var(--accent); border-radius:999px;
+    padding:6px 16px; margin-bottom:28px;
+  }
+  h1{ font-size:52px; line-height:1.05; letter-spacing:-.03em; font-weight:800; }
+  h1 .hl{ color:var(--accent); }
+  p{ margin-top:22px; font-size:19px; color:var(--muted); max-width:30ch; }
+  .cmd{ margin-top:30px; align-self:flex-start; background:var(--ink); color:var(--paper);
+        padding:14px 20px; border-radius:8px; font-size:18px; }
+  .cmd .d{ color:#8a8378; }
+  .right{ flex:1; display:flex; align-items:center; justify-content:center; padding:36px 36px 36px 0; }
+  .screen{ width:100%; border:1px solid var(--line); border-radius:14px; background:var(--paper2);
+           box-shadow:0 30px 60px -30px rgba(26,23,20,.5); overflow:hidden; }
+  .tb{ display:flex; gap:8px; padding:12px 16px; border-bottom:1px solid var(--line); background:var(--paper); }
+  .dot{ width:12px;height:12px;border-radius:50% }
+  .r{background:#d96a5a}.y{background:#d9b35a}.g{background:#7fae6b}
+  pre{ font-size:11px; line-height:1.18; padding:18px; white-space:pre; color:var(--ink); }
+  pre .a{ color:var(--accent); } pre .m{ color:var(--muted); }
+</style>
+</head>
+<body>
+  <div class="left">
+    <span class="eyebrow">The Asciinator for design engineers</span>
+    <h1>Webpages →<br><span class="hl">readable ASCII.</span></h1>
+    <p>One command. Headlines stay text, buttons stay buttons, only photos become art.</p>
+    <div class="cmd"><span class="d">$</span> npx lofi-ascii url stripe.com</div>
+  </div>
+  <div class="right">
+    <div class="screen">
+      <div class="tb"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+<pre><span class="a">$ lofi-ascii url stripe.com --width=90</span>
+
+┌──────────────────────────────────────────────┐
+│ [Logo]  Products  Devs  Pricing  [Sign in]     │
+└──────────────────────────────────────────────┘
+
+  Financial infrastructure          ░▒▒▒▒▒▒▒▒▒▒░
+  to grow your revenue.          ░▒▒▒▒▓▓▓▓▓▒▒▒▒▒░
+                                ░▒▒▒▓▓▓▓▓▓▓▓▒▒▒▒▒░
+  Accept payments, offer        ▒▒▒▓▓▓▓▓▓▓▓▓▓▒▒▒▒▒
+  financial services, and       ░▒▒▒▓▓▓▓▓▓▓▓▒▒▒▒▒░
+  build revenue models.          ░▒▒▒▒▓▓▓▓▒▒▒▒▒▒░
+                                   ░░▒▒▒▒▒▒▒▒░░
+  ┏━━━━━━━━━━━━┓ ┌────────────┐       ░░▒▒░░
+  ┃ Get started┃ │ Contact    │
+  ┗━━━━━━━━━━━━┛ └────────────┘
+<span class="m">  Saved → ./ascii-stripe-com.txt</span></pre>
+    </div>
+  </div>
+</body>
+</html>
