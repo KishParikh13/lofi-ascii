@@ -27,3 +27,4 @@ experiments/
 test-fixtures/*.png
 test-fixtures/*.jpg
 !test-fixtures/.gitkeep
+.gstack/

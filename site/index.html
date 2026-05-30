@@ -1,372 +1,428 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>lofi-ascii — turn any webpage into readable ASCII</title>
-<meta name="description" content="A tiny CLI and Claude skill that turns images and webpages into readable ASCII art and lofi wireframes. The Asciinator for design engineers.">
-<meta property="og:title" content="lofi-ascii — the Asciinator for design engineers">
-<meta property="og:description" content="One command turns a whole webpage into ASCII you can actually read — headlines stay text, buttons stay buttons, only the photos become art.">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>lofi-ascii — turn any image or website into ASCII you can read</title>
+<meta name="description" content="A developer tool for designers and developers. Render images and full webpages into clean, readable ASCII art and lo-fi wireframes. Local, fast, paste-anywhere.">
+<meta property="og:title" content="lofi-ascii — the web, as text">
+<meta property="og:description" content="Turn any image or website into ASCII you can actually read. A CLI for design engineers.">
 <meta property="og:type" content="website">
+<meta property="og:image" content="/assets/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="lofi-ascii — the web, as text">
+<meta name="twitter:description" content="Turn any image or website into ASCII you can actually read. A CLI for design engineers.">
+<meta property="og:image:alt" content="lofi-ascii — turn any image or website into readable ASCII">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23000'/%3E%3Crect x='6' y='6' width='20' height='20' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script>document.documentElement.classList.add('js');</script>
 <style>
-  :root {
-    --ink: #1a1714;
-    --paper: #f4efe6;
-    --paper-2: #ece5d8;
-    --line: #d8cfbe;
-    --muted: #6b6357;
-    --accent: #c2410c;       /* burnt orange */
-    --accent-soft: #e8d9c4;
-    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Menlo", "Cascadia Code", monospace;
+  :root{
+    --bg:#000; --fg:#fff; --dim:#9a9a9a; --faint:#3a3a3a; --line:#1c1c1c;
+    --mono:'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    --u:14px;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; }
-  body {
-    font-family: var(--mono);
-    background: var(--paper);
-    color: var(--ink);
-    line-height: 1.55;
-    -webkit-font-smoothing: antialiased;
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:var(--bg);color:var(--fg);font-family:var(--mono);
+    font-size:15px;line-height:1.55;letter-spacing:-.01em;
+    -webkit-font-smoothing:antialiased;overflow-x:hidden;
     background-image:
-      linear-gradient(var(--line) 1px, transparent 1px);
-    background-size: 100% 2.4rem;
-    background-position: 0 -1px;
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: calc(var(--u)*2) calc(var(--u)*2);
+    background-position:-1px -1px;
   }
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  .wrap { max-width: 980px; margin: 0 auto; padding: 0 24px; }
+  ::selection{background:#fff;color:#000}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 16px}
 
-  /* ---- top bar ---- */
-  header {
-    border-bottom: 1px solid var(--line);
-    background: rgba(244,239,230,0.9);
-    backdrop-filter: blur(6px);
-    position: sticky; top: 0; z-index: 10;
-  }
-  .bar { display: flex; align-items: center; justify-content: space-between; height: 56px; }
-  .brand { font-weight: 700; letter-spacing: -0.02em; }
-  .brand b { color: var(--accent); }
-  nav.top a { color: var(--ink); margin-left: 22px; font-size: 13px; }
-  nav.top a:hover { color: var(--accent); }
+  .rule{height:1px;background:var(--fg);width:100%}
+  .kicker{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
+  .cursor{display:inline-block;width:.48em;height:.78em;background:var(--fg);vertical-align:-.02em;margin-left:.08em;animation:blink 1.05s steps(1) infinite}
+  @keyframes blink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
 
-  /* ---- hero ---- */
-  .hero { padding: 72px 0 48px; }
-  .eyebrow {
-    display: inline-block; font-size: 12px; letter-spacing: 0.14em;
-    text-transform: uppercase; color: var(--accent);
-    border: 1px solid var(--accent); border-radius: 999px;
-    padding: 4px 12px; margin-bottom: 26px; background: var(--paper);
-  }
-  h1 {
-    font-size: clamp(34px, 6vw, 60px); line-height: 1.04;
-    letter-spacing: -0.03em; font-weight: 800; max-width: 16ch;
-  }
-  h1 .hl { color: var(--accent); }
-  .sub {
-    margin-top: 22px; font-size: 17px; color: var(--muted);
-    max-width: 60ch;
-  }
-  .cta { margin-top: 34px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
-  .cmd {
-    background: var(--ink); color: var(--paper);
-    padding: 13px 18px; border-radius: 8px; font-size: 14px;
-    display: inline-flex; align-items: center; gap: 12px;
-    box-shadow: 0 1px 0 rgba(0,0,0,0.25);
-  }
-  .cmd .dollar { color: #8a8378; user-select: none; }
-  .cmd button {
-    font-family: var(--mono); font-size: 11px; cursor: pointer;
-    background: #2e2924; color: var(--paper); border: 1px solid #4a4339;
-    border-radius: 5px; padding: 3px 9px;
-  }
-  .cmd button:hover { background: var(--accent); border-color: var(--accent); }
-  .ghost {
-    border: 1px solid var(--ink); color: var(--ink);
-    padding: 12px 18px; border-radius: 8px; font-size: 14px; background: transparent;
-  }
-  .ghost:hover { background: var(--ink); color: var(--paper); text-decoration: none; }
+  nav{position:sticky;top:0;z-index:50;background:#000;border-bottom:1px solid var(--fg)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:52px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.02em}
+  .brand .sq{width:14px;height:14px;background:var(--fg)}
+  .navlink{border:1px solid var(--fg);padding:7px 12px;font-size:12px;font-weight:700;
+    transition:background .12s ease-out,color .12s ease-out}
+  .navlink:hover{background:var(--fg);color:#000}
+  .navlink:active{transform:translateY(1px)}
 
-  /* ---- ascii showpiece ---- */
-  .screen {
-    margin-top: 52px; border: 1px solid var(--line); border-radius: 12px;
-    background: var(--paper-2); overflow: hidden;
-    box-shadow: 0 24px 60px -32px rgba(26,23,20,0.5);
+  header{padding:48px 0 0}
+  h1{font-size:clamp(2.7rem,13vw,6.2rem);font-weight:800;line-height:.92;letter-spacing:-.05em}
+  h1 .slash{color:var(--faint)}
+  .lede{margin-top:18px;max-width:34ch;color:var(--dim);font-size:clamp(.95rem,4vw,1.15rem);line-height:1.5}
+  .cta{margin-top:24px;display:flex;flex-wrap:wrap;gap:10px}
+  .cmd{display:inline-flex;align-items:center;gap:10px;border:1px solid var(--fg);
+    padding:11px 14px;font-size:13px;font-weight:500;cursor:pointer;background:#000;color:#fff;
+    transition:background .12s ease-out,color .12s ease-out}
+  .cmd .pfx{color:var(--dim)}
+  .cmd:hover{background:var(--fg);color:#000}
+  .cmd:hover .pfx{color:#000}
+  .cmd:active{transform:translateY(1px)}
+  .ghbtn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--fg);background:var(--fg);color:#000;
+    padding:11px 16px;font-size:13px;font-weight:800;transition:opacity .12s ease-out}
+  .ghbtn:hover{opacity:.82}.ghbtn:active{transform:translateY(1px)}
+
+  .stage{margin:30px 0 0;border:1px solid var(--fg);background:#000;overflow:hidden}
+  .stage .bar{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--fg);padding:8px 12px;font-size:11px;color:var(--dim)}
+  .stage .bar .dot{width:9px;height:9px;border:1px solid var(--fg)}
+  .stage .bar .url{color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .stage .bar .grow{flex:1}
+  .stage .bar .livetag{border:1px solid var(--fg);padding:1px 7px;font-size:9px;letter-spacing:.12em}
+
+  /* the render window: a webpage that wipes into its ASCII */
+  .render{position:relative;height:300px;overflow:hidden;background:#000;user-select:none}
+  .render .ui, .render .ascii{position:absolute;inset:0;padding:14px 10px}
+  .render .ui{display:flex;flex-direction:column;align-items:center;text-align:center;gap:7px;color:#fff}
+  .render .ui .ui-nav{font-size:8px;color:var(--dim);letter-spacing:.04em;border-bottom:1px solid var(--line);padding-bottom:8px;width:100%}
+  .render .ui .ui-h{font-size:26px;font-weight:800;letter-spacing:-.03em;margin-top:8px}
+  .render .ui .ui-sub{font-size:11px;color:var(--dim)}
+  .render .ui .ui-btns{display:flex;gap:7px;margin-top:2px}
+  .render .ui .ui-btns span{font-size:10px;padding:5px 10px;border:1px solid var(--fg)}
+  .render .ui .ui-btns .b2{background:var(--fg);color:#000}
+  .render .ui .ui-img{margin-top:8px;width:84px;height:128px;border:1px solid #2a2a2a;
+    background:linear-gradient(155deg,#f0f0f0 0%,#bdbdbd 32%,#6a6a6a 64%,#1c1c1c 100%);
+    border-radius:16px;box-shadow:inset 0 0 0 4px #000, inset 0 0 0 5px #333}
+  .render .ascii{margin:0;background:#000;white-space:pre;font-family:var(--mono);font-weight:700;line-height:1.04;
+    font-size:clamp(7px,2.7vw,11px);color:#fff;display:flex;flex-direction:column;justify-content:center;align-items:center;
+    clip-path:inset(0 0 100% 0)}
+  .render .scanbar{position:absolute;left:0;right:0;top:0;height:2px;background:#fff;
+    box-shadow:0 0 12px 2px rgba(255,255,255,.55);opacity:0}
+
+  section{padding:64px 0}
+  .seclabel{display:flex;align-items:baseline;gap:14px;margin-bottom:22px}
+  .seclabel .n{font-size:11px;color:var(--dim);font-weight:700}
+  h2{font-size:clamp(1.6rem,7vw,2.6rem);font-weight:800;letter-spacing:-.03em;line-height:1.02}
+  .sub{color:var(--dim);margin-top:8px;max-width:48ch}
+
+  .term{border:1px solid var(--fg);background:#000}
+  .term .head{display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--fg);padding:9px 13px;font-size:12px}
+  .term .head .who{color:var(--dim)}
+  .term .head .me{font-weight:700}
+  .term pre{margin:0;padding:14px 13px 16px;overflow-x:auto;font-size:clamp(6px,1.7vw,11px);line-height:1.04;color:var(--fg);-webkit-overflow-scrolling:touch}
+  .term pre::-webkit-scrollbar{height:6px}
+  .term pre::-webkit-scrollbar-thumb{background:var(--faint)}
+  .toggle{display:flex;gap:0;margin-bottom:14px;border:1px solid var(--fg);width:max-content;max-width:100%}
+  .toggle button{font:inherit;font-size:12px;font-weight:700;background:#000;color:var(--fg);border:0;border-right:1px solid var(--fg);
+    padding:8px 13px;cursor:pointer;transition:background .12s ease-out,color .12s ease-out}
+  .toggle button:last-child{border-right:0}
+  .toggle button[aria-pressed="true"]{background:var(--fg);color:#000}
+
+  .phonewrap{display:flex;justify-content:center}
+  .phone{border:1.5px solid var(--fg);padding:8px;background:#000;max-width:340px;width:100%}
+  .phone pre{margin:0;font-size:clamp(7px,2.6vw,11px);line-height:1;white-space:pre;overflow-x:auto;color:var(--fg)}
+
+  /* gallery: turn anything into ASCII */
+  .gallery{display:grid;grid-template-columns:1fr;gap:1px;background:var(--line);border:1px solid var(--fg)}
+  @media(min-width:620px){.gallery{grid-template-columns:1fr 1fr}}
+  .gcard{background:#000;color:var(--fg);padding:18px;display:flex;flex-direction:column;gap:14px;
+    transition:background .14s ease-out,color .14s ease-out}
+  .gcard:hover{background:var(--fg);color:#000}
+  .gart{flex:1;display:flex;align-items:center;justify-content:center;min-height:188px;overflow:hidden}
+  .gart pre{margin:0;font-family:var(--mono);font-weight:400;line-height:1;white-space:pre;color:inherit}
+  .gart pre.a-sq{font-size:clamp(8px,2.8vw,13px)}
+  .gart pre.a-wide{font-size:clamp(5px,1.75vw,9px)}
+  .gcard .cap{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    border-top:1px solid var(--line);padding-top:11px;font-size:11px}
+  .gcard:hover .cap{border-top-color:rgba(0,0,0,.25)}
+  .gcard .cap .file{color:inherit;opacity:.7}
+  .gcard .cap .tag{border:1px solid currentColor;padding:1px 8px;font-size:9px;letter-spacing:.1em;text-transform:uppercase}
+
+  .cmds{display:grid;grid-template-columns:1fr;gap:0;border:1px solid var(--fg)}
+  .cmds .cell{border-bottom:1px solid var(--fg);padding:16px;transition:background .12s ease-out,color .12s ease-out}
+  .cmds .cell:last-child{border-bottom:0}
+  .cmds .cell:hover{background:var(--fg);color:#000}
+  .cmds .cell:hover .c-dim{color:#000}
+  .cmds .cell .c-cmd{font-weight:800;font-size:14px}
+  .cmds .cell .c-dim{color:var(--dim);font-size:13px;margin-top:5px}
+
+  .why{display:grid;grid-template-columns:1fr;gap:0;border:1px solid var(--fg)}
+  .why .cell{border-bottom:1px solid var(--fg);padding:20px 16px;transition:background .12s ease-out,color .12s ease-out}
+  .why .cell:last-child{border-bottom:0}
+  .why .cell:hover{background:var(--fg);color:#000}
+  .why .cell:hover .c-dim{color:#000}
+  .why .cell .big{font-size:34px;font-weight:800;line-height:1}
+  .why .cell h3{font-size:15px;font-weight:800;margin:12px 0 5px}
+  .why .cell .c-dim{color:var(--dim);font-size:13px}
+
+  .final{text-align:center;border:1px solid var(--fg);padding:56px 18px;position:relative;overflow:hidden}
+  .final h2{font-size:clamp(2.2rem,11vw,5rem);letter-spacing:-.05em;line-height:.95}
+  .final .slash{color:var(--faint)}
+  .final .cta{justify-content:center;margin-top:26px}
+  .final .scan{position:absolute;left:0;right:0;height:42%;top:-46%;pointer-events:none;
+    background:linear-gradient(180deg,transparent,rgba(255,255,255,.07),transparent);animation:finscan 4.6s linear infinite}
+  @keyframes finscan{0%{top:-46%}100%{top:126%}}
+  footer{padding:40px 0 64px;color:var(--dim);font-size:12px;text-align:center}
+  footer pre{font-size:10px;line-height:1.1;color:var(--faint);margin-bottom:14px;white-space:pre;overflow-x:auto;display:inline-block;text-align:left}
+
+  /* progressive enhancement: only hide when JS is on (so no-JS/SEO/static capture still shows content) */
+  .js .rv{opacity:0;transform:translateY(10px) scale(.985)}
+  .js .rv.in{opacity:1;transform:none;transition:opacity .26s ease-out,transform .26s ease-out}
+
+  @media (min-width:680px){
+    .cmds{grid-template-columns:1fr 1fr}
+    .cmds .cell{border-right:1px solid var(--fg)}
+    .cmds .cell:nth-child(2n){border-right:0}
+    .why{grid-template-columns:1fr 1fr}
+    .why .cell{border-right:1px solid var(--fg)}
+    .why .cell:nth-child(2n){border-right:0}
+    .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:24px;align-items:center}
   }
-  .screen .titlebar {
-    display: flex; align-items: center; gap: 8px;
-    padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--paper);
+  @media (min-width:960px){
+    .why{grid-template-columns:repeat(4,1fr)}
+    .why .cell{border-right:1px solid var(--fg)!important}
+    .why .cell:nth-child(4n){border-right:0!important}
   }
-  .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--line); }
-  .dot.r { background: #d96a5a; } .dot.y { background: #d9b35a; } .dot.g { background: #7fae6b; }
-  .titlebar .path { margin-left: 10px; font-size: 12px; color: var(--muted); }
-  pre.ascii {
-    font-size: 11px; line-height: 1.12; padding: 22px 18px; overflow-x: auto;
-    color: var(--ink); white-space: pre; tab-size: 2;
-  }
-  pre.ascii .cmdline { color: var(--accent); }
-  pre.ascii .dim { color: var(--muted); }
-
-  /* ---- sections ---- */
-  section { padding: 56px 0; border-top: 1px solid var(--line); }
-  h2 { font-size: 26px; letter-spacing: -0.02em; margin-bottom: 8px; }
-  .lead { color: var(--muted); max-width: 64ch; margin-bottom: 30px; }
-
-  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-  .card {
-    border: 1px solid var(--line); border-radius: 10px; padding: 20px;
-    background: var(--paper-2);
-  }
-  .card h3 { font-size: 15px; margin-bottom: 8px; }
-  .card h3 .k { color: var(--accent); }
-  .card p { font-size: 13px; color: var(--muted); }
-
-  /* before/after */
-  .ba { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: stretch; }
-  .ba figure {
-    border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--paper-2);
-  }
-  .ba figcaption {
-    font-size: 12px; color: var(--muted); padding: 9px 14px; border-bottom: 1px solid var(--line);
-    text-transform: uppercase; letter-spacing: 0.1em;
-  }
-  .ba pre { font-size: 8.5px; line-height: 1.1; padding: 14px; overflow: hidden; white-space: pre; }
-  .ba .mock { padding: 0; }
-  .ba .mock .m-inner { padding: 18px; }
-  .m-nav { display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:12px; }
-  .m-hero { text-align:center; padding: 26px 8px; }
-  .m-hero .ph-img { height: 70px; background: linear-gradient(135deg,#d8cfbe,#cdbfa6); border-radius:8px; margin: 14px auto 18px; }
-  .m-hero h4 { font-size: 16px; letter-spacing:-0.02em; }
-  .m-hero p { font-size: 11px; color: var(--muted); margin: 8px 0 16px; }
-  .m-btns { display:flex; gap:8px; justify-content:center; }
-  .m-btns span { font-size:11px; padding:6px 12px; border-radius:6px; }
-  .m-btns .p { background: var(--accent); color: var(--paper); }
-  .m-btns .s { border:1px solid var(--line); color: var(--ink); }
-
-  /* skill block */
-  .split { display:grid; grid-template-columns: 1fr 1fr; gap: 22px; }
-  .split .panel { border:1px solid var(--line); border-radius:10px; padding:22px; background:var(--paper-2); }
-  .split .panel h3 { font-size:16px; margin-bottom:10px; }
-  .chat { font-size: 13px; }
-  .chat .you { color: var(--ink); }
-  .chat .ai { color: var(--muted); }
-  .chat .q { background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin:8px 0; }
-
-  ul.modes { list-style:none; font-size:13px; }
-  ul.modes li { padding:7px 0; border-bottom:1px dashed var(--line); }
-  ul.modes li:last-child { border-bottom:0; }
-  ul.modes .k { color: var(--accent); }
-
-  footer { border-top:1px solid var(--line); padding: 34px 0 60px; color: var(--muted); font-size: 13px; }
-  footer .row { display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; }
-
-  @media (max-width: 760px) {
-    .grid, .ba, .split { grid-template-columns: 1fr; }
-    nav.top a:not(:last-child) { display:none; }
-    pre.ascii { font-size: 9px; }
+  @media (prefers-reduced-motion:reduce){
+    .cursor,.scanbar,.final .scan{animation:none}
+    .rv,.js .rv,.js .rv.in{opacity:1!important;transform:none!important;transition:none!important}
   }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="wrap bar">
-    <div class="brand"><b>lofi</b>-ascii</div>
-    <nav class="top">
-      <a href="#how">How it works</a>
-      <a href="#showcase">Before / after</a>
-      <a href="#skill">Claude skill</a>
-      <a href="https://github.com/KishParikh13/lofi-ascii">GitHub ↗</a>
-    </nav>
+<nav><div class="wrap">
+  <div class="brand"><span class="sq"></span>lofi-ascii</div>
+  <a class="navlink" href="https://github.com/KishParikh13/lofi-ascii" target="_blank" rel="noopener">GitHub &#8599;</a>
+</div></nav>
+
+<header><div class="wrap">
+  <div class="hero-grid">
+    <div>
+      <div class="kicker">A CLI for design engineers</div>
+      <h1>The web,<br>as <span style="white-space:nowrap"><span class="slash">/</span>text.<span class="cursor"></span></span></h1>
+      <p class="lede">Point it at any image &mdash; or a live URL &mdash; and get ASCII you can actually read. Wireframes, README art, LLM-ready context. Runs local. Pastes anywhere.</p>
+      <div class="cta">
+        <button class="cmd" data-cmd="npx lofi-ascii url apple.com"><span class="pfx">$</span><span id="cmdtext"></span></button>
+        <a class="ghbtn" href="https://github.com/KishParikh13/lofi-ascii" target="_blank" rel="noopener">&#9733; Star on GitHub</a>
+      </div>
+    </div>
+
+    <div class="stage rv">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="url">$ lofi-ascii url apple.com</span><span class="grow"></span><span class="livetag">LIVE</span></div>
+      <div class="render" id="render">
+        <div class="ui" aria-hidden="true">
+          <div class="ui-nav">Store&nbsp;&nbsp;Mac&nbsp;&nbsp;iPad&nbsp;&nbsp;iPhone&nbsp;&nbsp;Watch&nbsp;&nbsp;Vision</div>
+          <div class="ui-h">iPhone</div>
+          <div class="ui-sub">Meet the latest lineup.</div>
+          <div class="ui-btns"><span class="b1">Learn more</span><span class="b2">Shop &#8250;</span></div>
+          <div class="ui-img"></div>
+        </div>
+        <pre class="ascii" id="asciiLayer" aria-hidden="true"></pre>
+        <div class="scanbar" id="scanbar"></div>
+      </div>
+    </div>
   </div>
-</header>
+</div></header>
 
-<main class="wrap">
+<section><div class="wrap">
+  <div class="seclabel rv"><span class="n">01</span><div><h2>Turn anything into ASCII.</h2><p class="sub">A photo, a logo, a product shot, a wallpaper &mdash; any image becomes clean character art in one command. Five styles, instant. Iterate on a look, drop it in a README, or hand your LLM something it can actually read. Real renders:</p></div></div>
+  <div class="gallery rv">
+    <figure class="gcard"><div class="gart"><pre class="a-sq" id="g-music"></pre></div><figcaption class="cap"><span class="file">$ render icon.png</span><span class="tag">logo</span></figcaption></figure>
+    <figure class="gcard"><div class="gart"><pre class="a-sq" id="g-vinyl"></pre></div><figcaption class="cap"><span class="file">$ render vinyl.jpg</span><span class="tag">record</span></figcaption></figure>
+    <figure class="gcard"><div class="gart"><pre class="a-wide" id="g-sonoma"></pre></div><figcaption class="cap"><span class="file">$ render wallpaper.png</span><span class="tag">art</span></figcaption></figure>
+    <figure class="gcard"><div class="gart"><pre class="a-wide" id="g-scene"></pre></div><figcaption class="cap"><span class="file">$ render sunset.jpg</span><span class="tag">scene</span></figcaption></figure>
+  </div>
+</div></section>
 
-  <!-- HERO -->
-  <div class="hero">
-    <span class="eyebrow">The Asciinator for design engineers</span>
-    <h1>Turn any webpage into ASCII <span class="hl">you can actually read.</span></h1>
-    <p class="sub">
-      One command. The whole page becomes text — headlines stay headlines,
-      buttons stay buttons, nav stays legible. Only the photographs become art.
-      Paste it into a PR, a Linear ticket, a Claude chat, or a code comment.
-      No screenshots, no file formats. Just text.
-    </p>
+<div class="wrap"><div class="rule rv"></div></div>
+
+<section><div class="wrap">
+  <div class="seclabel rv"><span class="n">02</span><div><h2>Read the web as text.</h2><p class="sub">Point it at a URL. lofi-ascii renders the live page &mdash; type, layout, and images &mdash; into one readable block. Real output below, scroll it sideways:</p></div></div>
+  <div class="rv">
+    <div class="toggle" id="webToggle">
+      <button data-k="apple" aria-pressed="true">apple.com</button>
+      <button data-k="feed" aria-pressed="false">wireframe</button>
+    </div>
+    <div class="term">
+      <div class="head"><span class="me">lofi-ascii</span><span class="who" id="webcmd">$ lofi-ascii url https://apple.com</span></div>
+      <pre id="webout"></pre>
+    </div>
+  </div>
+</div></section>
+
+<div class="wrap"><div class="rule rv"></div></div>
+
+<section><div class="wrap">
+  <div class="seclabel rv"><span class="n">03</span><div><h2>Lo-fi wireframes, for free.</h2><p class="sub">Every screen becomes a clean, blocky wireframe &mdash; perfect for specs, PRs, and design docs. This is a real phone feed, rendered:</p></div></div>
+  <div class="phonewrap rv"><div class="phone"><pre id="phoneout"></pre></div></div>
+</div></section>
+
+<div class="wrap"><div class="rule rv"></div></div>
+
+<section><div class="wrap">
+  <div class="seclabel rv"><span class="n">04</span><div><h2>Five verbs. That's the whole tool.</h2><p class="sub">No config. No cloud. One binary that does one thing well.</p></div></div>
+  <div class="cmds rv">
+    <div class="cell"><div class="c-cmd">render &lt;image&gt;</div><div class="c-dim">Any PNG / JPG &#8594; ASCII. Five styles: blocks, photo, lofi, braille, sketch.</div></div>
+    <div class="cell"><div class="c-cmd">url &lt;site&gt;</div><div class="c-dim">Text-aware render of a live webpage. Reads the real DOM, not just pixels.</div></div>
+    <div class="cell"><div class="c-cmd">compare a b</div><div class="c-dim">Side-by-side diff of two renders. Tune a style until it sings.</div></div>
+    <div class="cell"><div class="c-cmd">gallery &lt;in&gt;</div><div class="c-dim">One input, every style at once. Pick your look in a glance.</div></div>
+    <div class="cell"><div class="c-cmd">to-png &lt;ascii&gt;</div><div class="c-dim">Render ASCII back to a crisp PNG &mdash; for posts, slides, README headers.</div></div>
+    <div class="cell"><div class="c-cmd">doctor</div><div class="c-dim">Checks your setup in one shot. Tells you exactly what's missing.</div></div>
+  </div>
+</div></section>
+
+<div class="wrap"><div class="rule rv"></div></div>
+
+<section><div class="wrap">
+  <div class="seclabel rv"><span class="n">05</span><div><h2>Why design engineers keep it open.</h2></div></div>
+  <div class="why rv">
+    <div class="cell"><div class="big">01</div><h3>Readable, not cute</h3><div class="c-dim">Tuned ramps + text-aware mode mean output you can actually parse &mdash; not noise.</div></div>
+    <div class="cell"><div class="big">02</div><h3>Paste anywhere</h3><div class="c-dim">It's just text. Drop it in a README, a PR, a terminal, a spec, a tweet.</div></div>
+    <div class="cell"><div class="big">03</div><h3>Give your LLM eyes</h3><div class="c-dim">Hand a model a layout it can read. ASCII is the cheapest screenshot there is.</div></div>
+    <div class="cell"><div class="big">04</div><h3>100% local</h3><div class="c-dim">No account, no upload, no telemetry. Runs on your machine, offline.</div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="final rv">
+    <div class="scan"></div>
+    <h2>Clone it.<br><span class="slash">//</span> Run it.</h2>
     <div class="cta">
-      <span class="cmd">
-        <span class="dollar">$</span>
-        <span id="cmd-text">npx lofi-ascii url stripe.com --width=120</span>
-        <button onclick="navigator.clipboard.writeText('npx lofi-ascii url stripe.com --width=120');this.textContent='copied'">copy</button>
-      </span>
-      <a class="ghost" href="https://github.com/KishParikh13/lofi-ascii">Read the docs</a>
-    </div>
-
-    <!-- ASCII showpiece -->
-    <div class="screen">
-      <div class="titlebar">
-        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-        <span class="path">~ lofi-ascii url stripe.com --width=120</span>
-      </div>
-<pre class="ascii"><span class="cmdline">$ lofi-ascii url https://stripe.com --width=120</span>
-
-┌──────────────────────────────────────────────────────────────────────────────────────────┐
-│  [ Logo ]   Products   Solutions   Developers   Resources   Pricing   [ Sign in ] [ Contact ]│
-└──────────────────────────────────────────────────────────────────────────────────────────┘
-
-   Financial infrastructure to grow                  ░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░░░░
-   your revenue.                                  ░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░░
-                                                ░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░
-   Accept payments, offer financial            ▒▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
-   services, and build revenue models —        ▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
-   from first transaction to billionth.        ░▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░
-                                                ░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░
-   ┏━━━━━━━━━━━━━━┓  ┌────────────────────┐      ░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░░
-   ┃ Get started  ┃  │ Contact sales      │         ░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░░░
-   ┗━━━━━━━━━━━━━━┛  └────────────────────┘            ░░░░▒▒▒▒▒▒▒▒▒▒▒▒░░░░
-
-<span class="dim">   Saved → ./ascii-stripe-com-blocks-20260529.txt</span></pre>
+      <button class="cmd" data-cmd="npx lofi-ascii render photo.png"><span class="pfx">$</span><span>npx lofi-ascii render photo.png</span></button>
+      <a class="ghbtn" href="https://github.com/KishParikh13/lofi-ascii" target="_blank" rel="noopener">Open on GitHub &#8599;</a>
     </div>
   </div>
-</main>
+</div></section>
 
-<!-- HOW -->
-<section id="how">
-  <div class="wrap">
-    <h2>Not a brightness ramp. A wireframe.</h2>
-    <p class="lead">
-      Naïve image→ASCII tools turn a dark hero into a solid <code>█</code> blob.
-      lofi-ascii walks the live DOM, keeps real text as text, draws buttons as
-      boxes, and renders only the image regions — per-tile, edge-aware — so a
-      black phone, a white phone and a pink phone on one page each keep their shape.
-    </p>
-    <div class="grid">
-      <div class="card">
-        <h3><span class="k">url</span> — text-aware</h3>
-        <p>Headless Chrome + DOM walk. Real copy stays readable; only photos become art. The default, and the showcase.</p>
-      </div>
-      <div class="card">
-        <h3><span class="k">url-image</span> — native</h3>
-        <p>Whole screenshot → ASCII with a dependency-free renderer. The clean, classic Asciinator look. No chafa needed.</p>
-      </div>
-      <div class="card">
-        <h3><span class="k">render</span> — local files</h3>
-        <p>Any image → ASCII. blocks, braille, pure 7-bit, edge sketch, or 256-color photo. Deterministic and fast.</p>
-      </div>
-      <div class="card">
-        <h3><span class="k">wireframe</span> — via Claude</h3>
-        <p>Claude looks at the UI and emits a labeled, semantic wireframe — it knows "this is a button" and says so.</p>
-      </div>
-      <div class="card">
-        <h3><span class="k">compare</span> — A / B</h3>
-        <p>Two URLs or images, side-by-side or stacked. Perfect for before/after and competitive teardowns.</p>
-      </div>
-      <div class="card">
-        <h3><span class="k">to-png</span> — back out</h3>
-        <p>Render ASCII back to a crisp PNG for Figma, design docs, and READMEs. Round-trips both ways.</p>
-      </div>
-    </div>
-  </div>
-</section>
+<footer><div class="wrap">
+  <pre>+---------------+
+|  l o f i //   |
+|  a s c i i    |
++---------------+</pre>
+  <div>any image or site, as text &middot; open source &middot; macOS / linux</div>
+</div></footer>
 
-<!-- SHOWCASE -->
-<section id="showcase">
-  <div class="wrap">
-    <h2>Before / after</h2>
-    <p class="lead">A live page on the left. The lofi-ascii render on the right — readable, paste-anywhere, monospace-safe.</p>
-    <div class="ba">
-      <figure class="mock">
-        <figcaption>The page</figcaption>
-        <div class="m-inner">
-          <div class="m-nav"><span>◆ Acme</span><span>Product · Pricing · Docs · Sign in</span></div>
-          <div class="m-hero">
-            <h4>Build faster, ship smarter</h4>
-            <p>The platform design engineers actually like.</p>
-            <div class="ph-img"></div>
-            <div class="m-btns"><span class="p">Get started</span><span class="s">Learn more</span></div>
-          </div>
-        </div>
-      </figure>
-      <figure>
-        <figcaption>lofi-ascii</figcaption>
-<pre>┌──────────────────────────────────────────────┐
-│  [ ◆ Acme ]   Product  Pricing  Docs  [Sign in]│
-└──────────────────────────────────────────────┘
+<script>
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
 
-            Build faster, ship smarter
+  // Scroll-checked reveal: reveals each element as it nears the viewport, and
+  // (unlike a bare IntersectionObserver) can never leave a jumped-past section
+  // permanently hidden — any scroll re-checks everything still above the fold.
+  var rvItems = Array.prototype.slice.call(document.querySelectorAll('.rv'));
+  if(reduce){ rvItems.forEach(function(el){ el.classList.add('in'); }); rvItems = []; }
+  function checkReveal(){
+    var h = window.innerHeight || document.documentElement.clientHeight;
+    for(var i = rvItems.length - 1; i >= 0; i--){
+      if(rvItems[i].getBoundingClientRect().top < h * 0.92){
+        rvItems[i].classList.add('in'); rvItems.splice(i, 1);
+      }
+    }
+  }
+  checkReveal();
+  window.addEventListener('scroll', checkReveal, {passive:true});
+  window.addEventListener('resize', checkReveal);
+  window.addEventListener('load', checkReveal);
 
-         The platform design engineers
-                actually like.
+  document.querySelectorAll('.cmd').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var t = btn.getAttribute('data-cmd');
+      try{ navigator.clipboard && navigator.clipboard.writeText(t); }catch(e){}
+      var span = btn.querySelector('span:last-child');
+      var prev = span.textContent;
+      span.textContent = '✓ copied';
+      setTimeout(function(){ span.textContent = prev; }, 1100);
+    });
+  });
 
-         ░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░
-         ░▒▒▒▒▒▒▒▓▓▓▓▓▓▓▒▒▒▒▒▒▒▒▒▒░
-         ░▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▒▒▒▒▒▒▒▒░
-         ░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░
+  var cmdEl = document.getElementById('cmdtext');
+  var cmdFull = 'npx lofi-ascii url apple.com';
+  if(reduce){ cmdEl.textContent = cmdFull; }
+  else { var i=0; (function type(){ cmdEl.textContent = cmdFull.slice(0,i); if(i++<=cmdFull.length) setTimeout(type, 38); })(); }
 
-      ┏━━━━━━━━━━━━━┓  ┌────────────┐
-      ┃ Get started ┃  │ Learn more │
-      ┗━━━━━━━━━━━━━┛  └────────────┘</pre>
-      </figure>
-    </div>
-  </div>
-</section>
+  // hero render window: a real webpage wipes into its ASCII, on a loop.
+  var asciiLayer = document.getElementById('asciiLayer');
+  var scanbar = document.getElementById('scanbar');
+  var HERO_ASCII =
+    " Store  Mac  iPad  iPhone  Watch  Vision\n" +
+    "========================================\n" +
+    "\n" +
+    "                 iPhone\n" +
+    "\n" +
+    "        Meet the latest lineup.\n" +
+    "\n" +
+    "     +------------+  +----------+\n" +
+    "     | Learn more |  | Shop >   |\n" +
+    "     +------------+  +----------+\n" +
+    "\n" +
+    "          .:::::::::::::::.\n" +
+    "         ::oo8888888888oo::\n" +
+    "        :o8888:.      .:8888o:\n" +
+    "        :o88:    ....    :88o:\n" +
+    "        :o88:   :8888:   :88o:\n" +
+    "        :o88:   :8888:   :88o:\n" +
+    "        :o8888:.      .:8888o:\n" +
+    "         ::oo8888888888oo::\n" +
+    "          ':::::::::::::::'";
+  asciiLayer.textContent = HERO_ASCII;
 
-<!-- SKILL -->
-<section id="skill">
-  <div class="wrap">
-    <h2>It's also a Claude skill</h2>
-    <p class="lead">
-      Install once and Claude Code picks the right mode automatically. Just ask in plain English —
-      no flags to memorize.
-    </p>
-    <div class="split">
-      <div class="panel">
-        <h3>Talk to Claude</h3>
-        <div class="chat">
-          <div class="q"><span class="you">"Make an ASCII wireframe of stripe.com"</span></div>
-          <div class="q"><span class="you">"Convert ~/Desktop/figma-export.png to lofi ASCII"</span></div>
-          <div class="q"><span class="you">"Compare these two URLs side by side as ASCII"</span></div>
-          <p class="ai">→ Claude routes to <b>url</b>, <b>render</b>, or a hand-drawn <b>wireframe</b> and pastes the result inline.</p>
-        </div>
-      </div>
-      <div class="panel">
-        <h3>Or run the CLI directly</h3>
-        <ul class="modes">
-          <li><span class="k">render</span> &nbsp; image file → ASCII</li>
-          <li><span class="k">url</span> &nbsp; webpage → text-aware ASCII</li>
-          <li><span class="k">url-image</span> &nbsp; screenshot → native ASCII</li>
-          <li><span class="k">gallery</span> &nbsp; every style, one input</li>
-          <li><span class="k">compare</span> &nbsp; side-by-side A/B</li>
-          <li><span class="k">components</span> &nbsp; pre-made ASCII UI blocks</li>
-          <li><span class="k">to-png</span> &nbsp; ASCII → PNG for Figma/docs</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-</section>
+  function setWipe(pct, showScan){
+    asciiLayer.style.clipPath = 'inset(0 0 ' + (100 - pct).toFixed(2) + '% 0)';
+    if(showScan){ scanbar.style.opacity = '1'; scanbar.style.top = pct.toFixed(2) + '%'; }
+    else { scanbar.style.opacity = '0'; }
+  }
+  function ease(x){ return x < .5 ? 2*x*x : 1 - Math.pow(-2*x+2, 2)/2; }
 
-<!-- INSTALL -->
-<section id="install">
-  <div class="wrap">
-    <h2>Install</h2>
-    <p class="lead">Node 18+. Bring <code>chafa</code> and Chrome for the full feature set — <code>lofi-ascii doctor</code> checks for you.</p>
-    <div class="screen">
-      <div class="titlebar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="path">install</span></div>
-<pre class="ascii"><span class="dim"># try it instantly, nothing to install</span>
-<span class="cmdline">$</span> npx lofi-ascii url stripe.com --width=120
+  if(reduce){ setWipe(100, false); }
+  else {
+    var H1 = 1000, SC = 2200, H2 = 1500, CYCLE = H1 + SC + H2 + SC, t0 = null;
+    function loop(ts){
+      if(t0 === null) t0 = ts;
+      var t = (ts - t0) % CYCLE;
+      if(t < H1){ setWipe(0, false); }                                   // hold: the rendered page
+      else if(t < H1 + SC){ setWipe(ease((t - H1)/SC) * 100, true); }    // scan down -> becomes ASCII
+      else if(t < H1 + SC + H2){ setWipe(100, false); }                  // hold: pure ASCII
+      else { setWipe(100 - ease((t - H1 - SC - H2)/SC) * 100, true); }   // scan up -> back to the page
+      requestAnimationFrame(loop);
+    }
+    setWipe(0, false);
+    requestAnimationFrame(loop);
+  }
 
-<span class="dim"># or install globally</span>
-<span class="cmdline">$</span> npm install -g lofi-ascii
-<span class="cmdline">$</span> lofi-ascii doctor</pre>
-    </div>
-  </div>
-</section>
+  var APPLE = "  Store      Mac      iPad      iPhone      Watch      Vision      AirPods      TV & Home      Entertainment      Accessories      Support\n\n\n\n\n                                                              iPhone\n\n                                                     Meet the latest iPhone lineup.\n\n                                                        ┏━━━━━━━━━━━━┓┌─────────────┐\n                                                        ┃ Learn more ┃│ Shop iPhone │\n                                                        ┗━━━━━━━━━━━━┛└─────────────┘\n\n                                          ░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒                                ░░\n                                         ░░░░░▒░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒    ░▒▓▓▒            ░░▒▒░    ░▒▒▒░\n                                        ░ ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▒▒▒▒░ ░ ░░▒▒▒▒          ░▒▒█▒█    ░▒▒█ ░\n                                        ▒▒  ▒▒▒▒▒▒░░░▒▒░▒▒▓▓▒▒▒ ▒   ░░▒▒▒▓           ▒░▓▒▒░   ░░▒▓ ░\n                                        ▒▒ ▒▓▓▓▒▓▒▒▒▒▒▒░▒▒▒▒▒▒▒░▒   ▒▒███▒           ░░▒░▒    ░░▒▒ ░\n                                        ▒▒ ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▒░▒     ▒▒▒▓           ░░       ░░▒░░\n                                        ▒▓░░▒▒▒▒▒▒▒▒▒▒▒░▒▒▒▒▒▒▒░▒   ░ ▒▒▓▒           ░░       ░░▒\n                                        ▒▓░░▒▒▒▒░░░░░░░▒▒▒▒▒▒▒▒░▒   ░░▒▒▒            ░░       ░░▒\n                                        ▒▒░░░░▒▒░░░░░░░░▒▒▒▒▒▓▒ ▒                    ░░       ░▒▒\n                                        ▒▒░░░░░░░░░░░░░░▒▒▒▒▒▓▒ ▒                    ░░       ░▒▒░\n                                        ▒▓░░░░░░░░░░░░░░▒▒▒▒▒▒▒ ▒                    ░        ░▒▒\n                                        ▒▓░░░░░░░░░░░░░░▒▒▒▒▒▒▒░▒                             ░░▒\n                                        ▒▓░░░░░░░░░░░░░░▒▒▒▒▒▒▒░▒         ░░                  ░░▒\n                                        ▒▓░░░░░░░░░░░░░░▒▒▒▒▒▒▒░▒                             ░░▒░\n                                        ▒▓░░░░░░░░░░▒▒░░▒▒▒▒▒▒▒░▒                    ░        ░░▒░\n                                        ▒▓░░░░░░░░▒▒▒▒▒░▒▒▒▒▒▒▒░▒                    ░░       ░▒▒░\n                                        ▒▓░░░░░░░░▒▒▒▒░░▒▒▒▒▒▒▒░▒                    ░░       ░▒▒░\n                                        ▒▓░░░░░░░░░▒▒▒▒░▒▒▒▒▒▒▒░▒                    ░░       ░▒▒░\n                                         ▒░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒                      ░░        ░▒";
 
-<footer>
-  <div class="wrap row">
-    <span>lofi-ascii · MIT licensed · a CLI + a Claude skill</span>
-    <span><a href="https://github.com/KishParikh13/lofi-ascii">github.com/KishParikh13/lofi-ascii</a></span>
-  </div>
-</footer>
+  var FEED = "┌──────────────────────────────────┐\n│  ⌃   9:41                  ●●●   │\n├──────────────────────────────────┤\n│ ☰    Feed                    (●) │\n├──────────────────────────────────┤\n│                                  │\n│ ┌──────────────────────────────┐ │\n│ │ ●  Alex Chen           ▸ ⋯   │ │\n│ │    2h · For you              │ │\n│ │ ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔    │ │\n│ │ ▔▔▔▔▔ ▔▔▔ ▔▔▔▔▔▔▔ ▔▔▔        │ │\n│ │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │ │\n│ │ ░░░░ [ image ]          ░░░░ │ │\n│ │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │ │\n│ │  ◯ 248    ◯ 12     [ Share ] │ │\n│ └──────────────────────────────┘ │\n│                                  │\n│ ┌──────────────────────────────┐ │\n│ │ ●  Mia Sato            ▸ ⋯   │ │\n│ │    4h · Following            │ │\n│ │ ▔▔▔▔▔▔▔ ▔▔▔▔▔ ▔▔▔▔▔▔▔        │ │\n│ │  ◯ 31     ◯ 4      [ Share ] │ │\n│ └──────────────────────────────┘ │\n│                                  │\n│ ┌──────────────────────────────┐ │\n│ │ ●  Jay Park            ▸ ⋯   │ │\n│ │    6h · For you              │ │\n│ │ ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔         │ │\n│ │ ┌───────┐ ┌───────┐ ┌───────┐│ │\n│ │ │ ░░░░░ │ │ ░░░░░ │ │ ░░░░░ ││ │\n│ │ │ img 1 │ │ img 2 │ │ img 3 ││ │\n│ │ └───────┘ └───────┘ └───────┘│ │\n│ │  ◯ 19     ◯ 3      [ Share ] │ │\n│ └──────────────────────────────┘ │\n│                                  │\n│ …                                │\n│                                  │\n├──────────────────────────────────┤\n│  Home     Search   ＋    Likes   │\n│  ●●●●     ····    ····   ····    │\n└──────────────────────────────────┘";
 
+  document.getElementById('phoneout').textContent = FEED;
+
+  // gallery: real lofi-ascii renders of an icon, a record, a wallpaper, a scene.
+  var ART_MUSIC = "      ▁▂▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▂▁\n    ▗▆████████████████████▆▖\n   ▗██████████████▀▀▀▀██████▖\n   ▐████████▀▔▔▔     ▕██████▊\n   █████████▏    ▁▁▂▃▕██████▉\n   █████████▏▅▆▇████▉▕██████▉\n   █████████▏▐██████▉▕██████▉\n   █████████▏▐██████▉▕██████▉\n   █████████▏▐███▀▀▔ ▕██████▉\n   █████▛▔▔  ▐██▉    ▗██████▉\n   ▐████▏   ▁████▆▅▅▆███████▊\n   ▝█████▆▆▇████████████████▍\n    ▝▜████████████████████▛▘\n      ▔▔▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▔▔";
+  var ART_VINYL = "             ┄    ┄\n         ▁▃▅▆▇▇██▇▇▆▅▃▁\n      ▂▅▇██████████████▇▄▁╷\n    ▂▆████████████████████▅▂╴\n   ▗████████████████████████▅╲\n ┆▗██████████████████████████▃╂\n┌▆█████████████▀▀▜████████████▆▏\n▕▇██████████▊▅▅┳┯▅▅███████████▊┦\n┏▐████████████▀▆┷▀▜███████████▊│\n╵▇█████████████▋▟████████████▉ ▘\n ┋▜██████████████████████████▘┊\n  ▝▜████████████████████████▘\n   ┊▔▜████████████████████▛▔\n      ▔▀████████████████▀▔\n         ▀▀▜████████▛▀▔\n          ╵┋╹╵╱▔▔┄╱ ╴";
+  var ART_SONOMA = "                        ▔▀▜███████████████████████████\n                            ▔▀▀███████████████████████\n                                ▔▀▀███████████████████\n                                    ▔▔▀▜██████████████\n▂▁▁▁                                     ▔▀▀██████████\n██████▇▆▅▄▃▂▁                                ▔▀▀██████\n██████████████▆▅▃▂                               ▔▔▀▜█\n███████████████████▆▄▂          ╺┱▃▂\n███████████████████████▅▃▁        ▔▀█▇▅▃▁\n██████████████████████████▆▃▁        ▔▀██▇▅▃▁ ▁\n█████████████████████████████▆▃         ▀▜██████▇▅▂\n████████████████████████████████▅▃        ▔▀▀██████▇▄▁\n███████████████████████████████████▅▃         ▔▔▀▀▜██▀\n██████████████████████████████████████▆▄▂        ▁▂▄▂▄\n▀▜████████████████████████████████████████▆▆▅▅▅▆▇█████\n ▟█▀▀▜████████████████████████████████████████████████\n▝▔  ▗██▀▀▔▅███████████████████████████████████████████\n    ▝▔   ▟█▀▀▔ ▅██████████████████████████████████████\n   ▁     ▔    ▐▀▀▔  ▗▄▆▇██████████████████████████████\n▙▖ ▝                ▝▔▔▔  ▔▔▀▀███▛▀▀▀▀▀▜██████████████\n██▅▂                          ╺╴         ▔▔▀▜█████████\n████▇▃                                        ▔▀▀▜████\n███████▅▃                                          ▔▀▀\n██████████▆▃▁\n█████████████▇▅▃▁\n█████████████████▇▆▄▃▁\n███████████████████████▇▆▅▄▃▁";
+  var ART_SCENE = "                ▗▆▆▖\n                             ╶   ╶━╸\n\n                   ▁▂▂▁                            ▗▇█\n                  ▀▀▀▀▀  ▁▐▇▖        ▁          ▗▇▇███\n ▁  ▁ ▁ ▃▆▆▇▄▅▆▇▃▄▃▃▄▇▇██▅███      ▁▟▙        ▂▅██████\n▝▀▀▀▀▘▀▀▀▀▜██████████████████▙▃  ▗▇███▍     ┛█████████\n             ▔▔       ╺▇█▆▆██▛▔  ▝▀███▘    ╺▘▐████▛███\n                       ▝▀█▛▀▔       ▔    ▊  ▁▂▄█▇█████\n                          ╷ ▂▃▃▃▄▅╸▃▁▂▃▅▇█▍▟██████████\n                             ▔▆█▀█▅▇██████▛███████████\n                     ▂        ▜▂▇█████▛▜▇█▟███████████\n              ╶╌╼╍▚▄┲▀▀▀▁▁  ▄▅██████▘▂▃▅██████████████\n            ▂▅▇▃▂╼▃▔ ▝▘▀▀▀▘███████▛▔▟█████████████████\n     ▃▃▄▂▁▃▝▜┻▀▀█▅▇██▇███▆▄█▛▀▀███████████████████████\n     ▐▛▀▔▀▝▁▆▁▅▙██████████████████████████████████████\n▁▁▄▆█▋▂▃▆▇██▉▃████████████████████████████████████████\n▔▟▀▀▀▔▕▂██▀▀▀█████████████████████████████████████████\n╱ ▔  ▁▟████▅▟█████████████████████████████████████████\n    ▗▛████████████████████████████████████████████████\n    ▂▅██▘▀▛▛▜▀▜▛▀█████████████████████████████████████\n  ╻▗███▙╸   ┍ ▘▂▄██████▛██████████████████████████████\n  ▗███▛╴▁ ━╾╴ ▔▗█████▛▔▔▔▔▔▝▐█▛▀██████████▉▂██████████";
+  (function(){ var m={'g-music':ART_MUSIC,'g-vinyl':ART_VINYL,'g-sonoma':ART_SONOMA,'g-scene':ART_SCENE};
+    for(var id in m){ var el=document.getElementById(id); if(el) el.textContent=m[id]; } })();
+
+  var webout=document.getElementById('webout');
+  var webcmd=document.getElementById('webcmd');
+  var DATA={apple:{cmd:'$ lofi-ascii url https://apple.com', art:APPLE}, feed:{cmd:'$ lofi-ascii url https://demo.app/feed --mobile', art:FEED}};
+  var printTimer=null;
+  function printArt(txt){
+    if(printTimer){clearInterval(printTimer);printTimer=null;}
+    if(reduce){ webout.textContent=txt; return; }
+    var lines=txt.split('\n'), n=0; webout.textContent='';
+    printTimer=setInterval(function(){ n++; webout.textContent=lines.slice(0,n).join('\n'); if(n>=lines.length){clearInterval(printTimer);printTimer=null;} }, 26);
+  }
+  function setWeb(k){
+    webcmd.textContent=DATA[k].cmd;
+    document.querySelectorAll('#webToggle button').forEach(function(b){ b.setAttribute('aria-pressed', b.getAttribute('data-k')===k ? 'true':'false'); });
+    printArt(DATA[k].art);
+  }
+  document.querySelectorAll('#webToggle button').forEach(function(b){ b.addEventListener('click', function(){ setWeb(b.getAttribute('data-k')); }); });
+  var webObserved=false;
+  var io2=new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting && !webObserved){ webObserved=true; setWeb('apple'); io2.disconnect(); } }); }, {threshold:.2});
+  io2.observe(webout);
+})();
+</script>
 </body>
 </html>
